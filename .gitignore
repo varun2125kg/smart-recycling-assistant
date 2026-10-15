@@ -1,0 +1,37 @@
+# ==============================================================================
+# EcoVision AI - Smart Recycling Assistant .gitignore
+# ==============================================================================
+
+# Secrets & Environment Variables (CRITICAL: NEVER COMMIT API KEYS)
+.env
+.env.*
+*.env
+!.env.example
+
+# Python virtual environment & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# Local database & uploaded assets
+*.db
+*.sqlite
+*.sqlite3
+uploads/*
+!uploads/.gitkeep
+
+# Subdirectory duplicate (keeps GitHub repository clean and un-nested)
+EcoVisionAI/
+
+# OS and Editor metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+.idea/
+.vscode/
+*.swp
+*.swo
