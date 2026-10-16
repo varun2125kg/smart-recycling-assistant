@@ -5,6 +5,25 @@
  */
 
 // ============================================================================
+// Weight & Numerical Formatting Utilities (Simulation Estimates)
+// ============================================================================
+function formatWeight(kg) {
+  const val = Number(kg) || 0;
+  if (val === 0) return '0.000 kg';
+  if (val < 1) return `${val.toFixed(3)} kg`;
+  if (val < 10) return `${val.toFixed(2)} kg`;
+  return `${val.toFixed(1)} kg`;
+}
+
+function formatWeightNumber(kg) {
+  const val = Number(kg) || 0;
+  if (val === 0) return '0.000';
+  if (val < 1) return val.toFixed(3);
+  if (val < 10) return val.toFixed(2);
+  return val.toFixed(1);
+}
+
+// ============================================================================
 // Global State
 // ============================================================================
 const state = {
@@ -42,6 +61,7 @@ const state = {
       subCategory: 'PET-1 (Polyethylene Terephthalate)',
       confidence: 98.4,
       recyclable: true,
+      estimated_weight_kg: 0.025,
       decomposition: '450 Years',
       carbonOffset: '0.18 kg CO2e',
       disposalProtocol: 'Empty contents completely and rinse with cold water. Remove and separate polypropylene screw cap to prevent mixed-polymer density contamination during flotation.',
@@ -67,6 +87,7 @@ const state = {
       subCategory: 'UBC Aluminum Alloy 3104 / 5182',
       confidence: 99.1,
       recyclable: true,
+      estimated_weight_kg: 0.015,
       decomposition: '200 Years',
       carbonOffset: '0.35 kg CO2e',
       disposalProtocol: 'Drain fluid residues. Aluminum can be recycled infinitely with zero degradation of crystal matrix. Crush body flat to maximize bale density.',
@@ -93,6 +114,7 @@ const state = {
       subCategory: 'Corrugated Unbleached Kraft',
       confidence: 97.6,
       recyclable: true,
+      estimated_weight_kg: 0.500,
       decomposition: '2 Months',
       carbonOffset: '0.24 kg CO2e',
       disposalProtocol: 'Peel off shipping thermal labels and tape. Flatten box completely to ensure optimal compression in automated baler cells.',
@@ -118,6 +140,7 @@ const state = {
       subCategory: 'Container Flint Soda-Lime Glass',
       confidence: 96.1,
       recyclable: true,
+      estimated_weight_kg: 0.250,
       decomposition: '1 Million Years',
       carbonOffset: '0.31 kg CO2e',
       disposalProtocol: 'Rinse jar cleanly. Remove metal lids for separate eddy current sorting. Glass remelting consumes 30% less energy than virgin silica batch.',
@@ -142,6 +165,7 @@ const state = {
       subCategory: 'Biodegradable Compost Biomass',
       confidence: 98.7,
       recyclable: true,
+      estimated_weight_kg: 0.180,
       decomposition: '3-4 Weeks',
       carbonOffset: '0.11 kg CO2e',
       disposalProtocol: 'Route to industrial anaerobic biodigestion or municipal aerobic windrow composting. Prevents anaerobic landfill methane production.',
@@ -157,6 +181,33 @@ const state = {
         <circle cx="115" cy="85" r="2.5" fill="#FFFFFF"/>
         <circle cx="125" cy="100" r="2.5" fill="#FFFFFF"/>
         <circle cx="120" cy="90" r="65" stroke="#8893A2" stroke-width="0.8" stroke-dasharray="2 4"/>
+      </svg>`
+    },
+    paper_sheet: {
+      id: 'paper_sheet',
+      filename: 'sample_office_paper_sheet.jpg',
+      name: 'Office Paper Sheet',
+      category: 'Paper',
+      subCategory: 'Standard 80gsm Bond Paper',
+      confidence: 97.2,
+      recyclable: true,
+      estimated_weight_kg: 0.005,
+      decomposition: '2-6 Weeks',
+      carbonOffset: '0.05 kg CO2e',
+      disposalProtocol: 'Keep unsoiled and dry. Remove staples or paperclips before depositing into paper recovery stream.',
+      reuseOptions: 'Repulpable for new printing paper, packaging cartons, and protective paper cushioning.',
+      recyclingTips: 'Avoid heavily waxed paper, carbon copy paper, or thermally coated cash register receipts.',
+      svg: `<svg viewBox="0 0 240 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="180" fill="#0E1622"/>
+        <line x1="20" y1="90" x2="220" y2="90" stroke="#1E293B" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="120" y1="15" x2="120" y2="165" stroke="#1E293B" stroke-width="1" stroke-dasharray="3 3"/>
+        <rect x="90" y="32" width="60" height="88" rx="2" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+        <line x1="100" y1="48" x2="140" y2="48" stroke="#94A3B8" stroke-width="1.2"/>
+        <line x1="100" y1="60" x2="140" y2="60" stroke="#94A3B8" stroke-width="1.2"/>
+        <line x1="100" y1="72" x2="140" y2="72" stroke="#94A3B8" stroke-width="1.2"/>
+        <line x1="100" y1="84" x2="130" y2="84" stroke="#94A3B8" stroke-width="1.2"/>
+        <text x="120" y="104" font-family="JetBrains Mono, monospace" font-size="8" font-weight="600" fill="#64748B" text-anchor="middle">A4 // 80GSM</text>
+        <circle cx="120" cy="90" r="65" stroke="#C87952" stroke-width="0.8" stroke-dasharray="2 4"/>
       </svg>`
     }
   }
@@ -320,10 +371,10 @@ async function syncLiveTelemetry() {
       const twin = await twinRes.json();
       if (twin.bins) {
         Object.keys(twin.bins).forEach(k => {
-          if (state.streams[k]) {
-            state.streams[k].fill = Math.round(twin.bins[k].fill_percentage);
-            state.streams[k].weight = Math.round(twin.bins[k].current_kg);
-            state.streams[k].max = Math.round(twin.bins[k].max_kg);
+          if (state.streams[k] && twin.bins[k]) {
+            state.streams[k].fill = Number(twin.bins[k].fill_percentage);
+            state.streams[k].weight = Number(twin.bins[k].current_kg);
+            state.streams[k].max = Number(twin.bins[k].max_kg);
           }
         });
         updateTwinDisplay();
@@ -343,7 +394,11 @@ function renderHeroMetrics() {
   if (elScans) elScans.textContent = state.stats.totalScans;
   if (elRate) elRate.textContent = `${state.stats.recyclableRate}%`;
   if (elCats) elCats.textContent = state.stats.categoriesCount;
-  if (elWeight) elWeight.innerHTML = `${Number(state.stats.totalWeightKg).toFixed(1)} <abbr title="Kilograms">kg</abbr>`;
+  if (elWeight) {
+    const val = Number(state.stats.totalWeightKg) || 0;
+    const str = val < 1 && val > 0 ? val.toFixed(3) : val.toFixed(1);
+    elWeight.innerHTML = `${str} <abbr title="Kilograms">kg</abbr>`;
+  }
 }
 
 // ============================================================================
@@ -657,6 +712,8 @@ async function executeAnalysisWorkflow() {
       decomposition: fallbackPreset.decomposition,
       carbon_saved: fallbackPreset.carbonOffset,
       disposal_steps: fallbackPreset.disposalProtocol,
+      estimated_weight_kg: fallbackPreset.estimated_weight_kg || 0.025,
+      weight_is_estimate: true,
       is_demo: true,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -727,6 +784,20 @@ function displayClassification(result) {
   if (elDecomp) elDecomp.textContent = result.decomposition || '450 Years';
   if (elCarbon) elCarbon.textContent = result.carbon_saved || '0.18 kg CO2e';
 
+  // Area 02: Estimated Item Mass Display
+  const elWeight = document.getElementById('resWeightDisplay');
+  const elDispatchAnnot = document.getElementById('dispatchWeightAnnotation');
+  const estWeight = Number(result.estimated_weight_kg) || 0.025;
+  const weightFormatted = formatWeight(estWeight);
+
+  if (elWeight) {
+    elWeight.textContent = `~${weightFormatted}`;
+    elWeight.title = "Simulated reference estimate; not a physical scale measurement";
+  }
+  if (elDispatchAnnot) {
+    elDispatchAnnot.textContent = `Route specimen (~${weightFormatted} Est.) to the simulated recycling silo.`;
+  }
+
   const streamNames = {
     'Plastic': 'Stream 01 // Polymers',
     'Paper': 'Stream 02 // Pulp & Fibre',
@@ -789,7 +860,8 @@ async function dispatchToDigitalTwin() {
   }
 
   const category = (state.currentClassification.category || 'plastic').toLowerCase();
-  const weight = 15.0; // standard container weight increment (kg)
+  const weight = Number(state.currentClassification.estimated_weight_kg) || 0.025;
+  const weightFormatted = formatWeight(weight);
 
   try {
     const res = await fetch('/api/digital-twin/inflow', {
@@ -799,7 +871,7 @@ async function dispatchToDigitalTwin() {
     });
 
     if (res.ok) {
-      triggerSystemToast(`Routed specimen to ${category.toUpperCase()} Silo (+${weight} kg).`, 'success');
+      triggerSystemToast(`Routed specimen to ${category.toUpperCase()} Silo (+${weightFormatted} estimated).`, 'success');
       await syncLiveTelemetry();
     } else {
       throw new Error('API routing failed');
@@ -808,10 +880,10 @@ async function dispatchToDigitalTwin() {
     // Client-side fallback
     if (state.streams[category]) {
       const s = state.streams[category];
-      s.weight = Math.min(s.max, s.weight + weight);
-      s.fill = Math.round((s.weight / s.max) * 100);
+      s.weight = Math.min(s.max, Number((s.weight + weight).toFixed(3)));
+      s.fill = Number(((s.weight / s.max) * 100).toFixed(2));
       updateTwinDisplay();
-      triggerSystemToast(`[Client] Routed to ${category.toUpperCase()} Silo (+${weight} kg).`, 'info');
+      triggerSystemToast(`[Client] Routed to ${category.toUpperCase()} Silo (+${weightFormatted} estimated).`, 'info');
     }
   }
 }
@@ -964,7 +1036,8 @@ function updateTwinDisplay() {
     const el = mapSvg[k];
     const stream = state.streams[k];
     if (el && stream) {
-      el.textContent = `${stream.fill}% • ${stream.weight} kg`;
+      const fillText = stream.fill < 1 && stream.fill > 0 ? stream.fill.toFixed(1) : Math.round(stream.fill);
+      el.textContent = `${fillText}% • ${formatWeight(stream.weight)}`;
     }
   });
 
@@ -986,9 +1059,10 @@ function updateTwinDisplay() {
     const elFill = document.getElementById(elIds.fill);
     const elWeight = document.getElementById(elIds.weight);
 
-    if (elPct) elPct.textContent = `${stream.fill}%`;
-    if (elFill) elFill.style.width = `${stream.fill}%`;
-    if (elWeight) elWeight.textContent = `${stream.weight} / ${stream.max} kg`;
+    const fillText = stream.fill < 1 && stream.fill > 0 ? stream.fill.toFixed(1) : Math.round(stream.fill);
+    if (elPct) elPct.textContent = `${fillText}%`;
+    if (elFill) elFill.style.width = `${Math.min(100, stream.fill)}%`;
+    if (elWeight) elWeight.textContent = `${formatWeightNumber(stream.weight)} / ${stream.max} kg`;
   });
 }
 
@@ -1187,7 +1261,7 @@ function renderHistoryTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--color-text-muted);">
+        <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--color-text-muted);">
           <div style="font-size: 1.4rem; margin-bottom: 0.5rem; opacity: 0.5;">✦</div>
           <div style="font-weight: 600; color: var(--color-text-primary);">No Specimen Records Logged</div>
           <div style="font-size: 0.8rem; margin-top: 0.2rem;">Drop a specimen into Module 01 (Material Scanner) to generate initial audit record.</div>
@@ -1221,6 +1295,12 @@ function renderHistoryTable() {
           <strong class="font-mono" style="font-size: 0.84rem; color: ${item.confidence > 90 ? 'var(--color-sage-dark)' : 'var(--color-primary)'};">
             ${Number(item.confidence).toFixed(1)}%
           </strong>
+        </td>
+        <td>
+          <strong class="font-mono" style="font-size: 0.82rem; color: var(--color-primary);" title="Estimated reference weight (simulated)">
+            ${formatWeight(item.estimated_weight_kg || 0.025)}
+          </strong>
+          <div style="font-size: 0.65rem; color: var(--color-text-muted);">Est. Mass</div>
         </td>
         <td>
           <span class="verification-badge-pill ${item.is_demo ? 'demo' : ''}" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">
@@ -1264,13 +1344,26 @@ function openSpecimenDetails(scanId) {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
         <div style="background: var(--bg-canvas); padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
           <span style="font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase;">Category Stream</span>
-          <div style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; color: var(--color-primary);">${item.category}</div>
-          <div style="font-size: 0.76rem; color: var(--color-text-secondary); font-family: var(--font-mono);">${item.sub_category || 'N/A'}</div>
+          <div style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; color: var(--color-primary);">${escapeHtml(item.category)}</div>
+          <div style="font-size: 0.76rem; color: var(--color-text-secondary); font-family: var(--font-mono);">${escapeHtml(item.sub_category || 'N/A')}</div>
         </div>
+        <div style="background: var(--bg-canvas); padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
+          <span style="font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase;">Estimated Unit Mass</span>
+          <div style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; color: var(--color-primary);">${formatWeight(item.estimated_weight_kg || 0.025)}</div>
+          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Simulated Reference Estimate</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
         <div style="background: var(--bg-canvas); padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
           <span style="font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase;">Inference Confidence</span>
           <div style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; color: var(--color-sage-dark);">${Number(item.confidence).toFixed(1)}%</div>
           <div style="font-size: 0.76rem; color: var(--color-text-secondary);">Circularity: ${item.recyclable ? 'Recyclable' : 'Non-Recyclable'}</div>
+        </div>
+        <div style="background: var(--bg-canvas); padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
+          <span style="font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase;">Carbon Offset</span>
+          <div style="font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; color: var(--color-primary);">${item.carbon_saved || '0.18 kg CO2e'}</div>
+          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Landfill Avoidance</div>
         </div>
       </div>
 
@@ -1281,7 +1374,7 @@ function openSpecimenDetails(scanId) {
 
       <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-text-muted);">
         <span>RECORD-UID: ${item.id}</span>
-        <span>OFFSET: ${item.carbon_saved || '0.18 kg CO2e'}</span>
+        <span>EST-MASS: ${formatWeight(item.estimated_weight_kg || 0.025)}</span>
       </div>
     `;
   }
@@ -1314,13 +1407,14 @@ function exportLedgerCSV() {
     return;
   }
 
-  const headers = ['UID', 'Filename', 'Category', 'SubCategory', 'Confidence', 'Recyclable', 'Decomposition', 'CarbonOffset', 'Timestamp', 'IsDemo'];
+  const headers = ['UID', 'Filename', 'Category', 'SubCategory', 'Confidence', 'EstimatedWeight_kg', 'Recyclable', 'Decomposition', 'CarbonOffset', 'Timestamp', 'IsDemo'];
   const rows = state.history.map(item => [
     `"${item.id}"`,
     `"${item.filename}"`,
     `"${item.category}"`,
     `"${item.sub_category || ''}"`,
     item.confidence,
+    item.estimated_weight_kg || 0.025,
     item.recyclable ? 'TRUE' : 'FALSE',
     `"${item.decomposition || ''}"`,
     `"${item.carbon_saved || ''}"`,

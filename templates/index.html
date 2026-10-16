@@ -335,6 +335,11 @@
                 <span class="preset-name">Organic Food Waste</span>
                 <span class="preset-code font-mono">#ORG-05</span>
               </button>
+              <button type="button" class="specimen-preset-card" data-preset="paper_sheet">
+                <span class="preset-icon">📄</span>
+                <span class="preset-name">Office Paper Sheet</span>
+                <span class="preset-code font-mono">#PAP-06</span>
+              </button>
             </div>
           </div>
 
@@ -426,12 +431,13 @@
                 <span class="spec-tile-value" id="resCircularityDisplay" style="color: var(--color-sage);">Recyclable</span>
               </div>
               <div class="spec-tile">
-                <span class="spec-tile-label">Decomposition</span>
-                <span class="spec-tile-value" id="resDecompositionDisplay">450 Years</span>
+                <span class="spec-tile-label">Estimated Item Mass</span>
+                <span class="spec-tile-value font-mono" id="resWeightDisplay" style="color: var(--color-primary);">~0.025 kg</span>
+                <span class="spec-tile-sub font-mono" style="font-size: 0.65rem; color: var(--color-text-muted);">Simulated Reference</span>
               </div>
               <div class="spec-tile">
-                <span class="spec-tile-label">Carbon Averted</span>
-                <span class="spec-tile-value" id="resCarbonDisplay" style="color: var(--color-primary);">0.18 kg CO2e</span>
+                <span class="spec-tile-label">Decomposition</span>
+                <span class="spec-tile-value" id="resDecompositionDisplay">450 Years</span>
               </div>
               <div class="spec-tile">
                 <span class="spec-tile-label">Facility Stream</span>
@@ -443,7 +449,7 @@
             <div class="dispatch-facility-box">
               <div class="dispatch-info-text">
                 <strong>Facility Integration:</strong>
-                <span>Route classified specimen directly to the simulated recycling silo.</span>
+                <span id="dispatchWeightAnnotation">Route classified specimen to the simulated recycling silo.</span>
               </div>
               <button class="btn-primary-action small" id="btnDispatchToSilo">
                 <span>Route to Silo</span>
@@ -934,6 +940,7 @@
                 <th>Specimen Name & Grade</th>
                 <th>Stream</th>
                 <th>Confidence</th>
+                <th>Est. Weight</th>
                 <th>Source</th>
                 <th>Timestamp</th>
                 <th style="text-align: right;">Action</th>

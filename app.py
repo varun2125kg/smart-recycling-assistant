@@ -39,9 +39,6 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max
 # Default Gemini model (configurable via GEMINI_MODEL in .env)
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
-# Configurable simulated item weight per scan in kg (default 0.25 kg)
-DEFAULT_SCAN_ITEM_WEIGHT_KG = 0.25
-
 # Supported Digital Twin material stream mappings
 CATEGORY_TO_STREAM = {
     "plastic": "plastic",
@@ -50,6 +47,181 @@ CATEGORY_TO_STREAM = {
     "glass": "glass",
     "organic": "organic"
 }
+
+# ==============================================================================
+# Configurable Weight Estimates (Simulation Reference Values)
+# Note: These values are simulated reference estimates for material flow modeling,
+# not physically measured weights. Computer vision cannot determine physical mass.
+# ==============================================================================
+DEFAULT_ITEM_WEIGHT_ESTIMATES_KG = {
+    "plastic water bottle": 0.025,
+    "aluminium can": 0.015,
+    "aluminum can": 0.015,
+    "apple": 0.180,
+    "paper sheet": 0.005,
+    "cardboard box": 0.500,
+    "glass bottle": 0.250,
+}
+
+DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG = {
+    "plastic": 0.025,
+    "paper": 0.050,
+    "metal": 0.015,
+    "glass": 0.250,
+    "organic": 0.180,
+    "general": 0.100,
+}
+
+def resolve_estimated_weight(category, sub_category="", filename="", detected_item=""):
+    """
+    Determines the simulated reference weight (in kg) for a scanned specimen.
+    Matches specific common items first (e.g. plastic water bottle, aluminium can, apple),
+    and falls back to broad category-level estimates if a specific item cannot be identified.
+
+    Returns:
+        dict: {
+            "weight_kg": float (e.g. 0.025),
+            "item_name": str (e.g. "Plastic Water Bottle"),
+            "is_specific_item": bool (True if common item mapped, False if category fallback),
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+    """
+    cat_lower = (category or "general").strip().lower()
+    sub_lower = (sub_category or "").strip().lower()
+    file_lower = (filename or "").strip().lower()
+    det_lower = (detected_item or "").strip().lower()
+
+    combined_text = f"{det_lower} {sub_lower} {file_lower}".lower()
+
+    # Configurable weights via environment variables (with default fallbacks)
+    weight_plastic_bottle = float(os.environ.get("WEIGHT_EST_PLASTIC_WATER_BOTTLE", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["plastic water bottle"]))
+    weight_alu_can = float(os.environ.get("WEIGHT_EST_ALUMINIUM_CAN", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["aluminium can"]))
+    weight_apple = float(os.environ.get("WEIGHT_EST_APPLE", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["apple"]))
+    weight_paper_sheet = float(os.environ.get("WEIGHT_EST_PAPER_SHEET", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["paper sheet"]))
+    weight_cardboard_box = float(os.environ.get("WEIGHT_EST_CARDBOARD_BOX", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["cardboard box"]))
+    weight_glass_bottle = float(os.environ.get("WEIGHT_EST_GLASS_BOTTLE", DEFAULT_ITEM_WEIGHT_ESTIMATES_KG["glass bottle"]))
+
+    cat_estimates = {
+        "plastic": float(os.environ.get("CATEGORY_EST_PLASTIC", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["plastic"])),
+        "paper": float(os.environ.get("CATEGORY_EST_PAPER", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["paper"])),
+        "metal": float(os.environ.get("CATEGORY_EST_METAL", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["metal"])),
+        "glass": float(os.environ.get("CATEGORY_EST_GLASS", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["glass"])),
+        "organic": float(os.environ.get("CATEGORY_EST_ORGANIC", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["organic"])),
+        "general": float(os.environ.get("CATEGORY_EST_GENERAL", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["general"])),
+    }
+
+    # 1. Plastic Water Bottle: 0.025 kg
+    if (
+        "plastic water bottle" in combined_text
+        or "water bottle" in combined_text
+        or "plastic bottle" in combined_text
+        or "pet water bottle" in combined_text
+        or (cat_lower == "plastic" and any(k in combined_text for k in ["bottle", "pet", "flask", "water", "beverage container"]))
+    ):
+        return {
+            "weight_kg": weight_plastic_bottle,
+            "item_name": "Plastic Water Bottle",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # 2. Aluminium Can: 0.015 kg
+    if (
+        "aluminium can" in combined_text
+        or "aluminum can" in combined_text
+        or "soda can" in combined_text
+        or "tin can" in combined_text
+        or "beverage can" in combined_text
+        or "beer can" in combined_text
+        or (cat_lower == "metal" and any(k in combined_text for k in ["can", "ubc", "tin", "soda", "drink"]))
+    ):
+        return {
+            "weight_kg": weight_alu_can,
+            "item_name": "Aluminium Can",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # 3. Apple: 0.180 kg
+    if (
+        "apple" in combined_text
+        or "apple core" in combined_text
+        or "apple scrap" in combined_text
+        or "apple fruit" in combined_text
+    ):
+        return {
+            "weight_kg": weight_apple,
+            "item_name": "Apple",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # 4. Paper Sheet: 0.005 kg
+    if (
+        "paper sheet" in combined_text
+        or "sheet of paper" in combined_text
+        or "office paper" in combined_text
+        or "printer paper" in combined_text
+        or "document" in combined_text
+        or "a4" in combined_text
+        or "letterhead" in combined_text
+        or "single sheet" in combined_text
+        or (cat_lower == "paper" and "sheet" in combined_text)
+    ):
+        return {
+            "weight_kg": weight_paper_sheet,
+            "item_name": "Paper Sheet",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # 5. Cardboard Box: 0.500 kg
+    if (
+        "cardboard box" in combined_text
+        or "shipping box" in combined_text
+        or "corrugated box" in combined_text
+        or "carton" in combined_text
+        or "corrugated" in combined_text
+        or (cat_lower == "paper" and any(k in combined_text for k in ["box", "carton", "package", "packaging", "kraft"]))
+    ):
+        return {
+            "weight_kg": weight_cardboard_box,
+            "item_name": "Cardboard Box",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # 6. Glass Bottle: 0.250 kg
+    if (
+        "glass bottle" in combined_text
+        or "glass jar" in combined_text
+        or "flint glass" in combined_text
+        or (cat_lower == "glass" and any(k in combined_text for k in ["bottle", "jar", "container", "cullet", "flint"]))
+    ):
+        return {
+            "weight_kg": weight_glass_bottle,
+            "item_name": "Glass Bottle",
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
+    # Category-level fallback estimate
+    fallback_weight = cat_estimates.get(cat_lower, cat_estimates.get("general", 0.100))
+    display_cat = category.strip().title() if category else "General"
+    return {
+        "weight_kg": fallback_weight,
+        "item_name": f"{display_cat} (Category Estimate)",
+        "is_specific_item": False,
+        "is_estimate": True,
+        "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+    }
 
 # System instruction for Google Gemini
 RECYCLING_SYSTEM_INSTRUCTION = (
@@ -81,10 +253,17 @@ def init_db():
         decomposition TEXT,
         carbon_saved TEXT,
         disposal_steps TEXT,
+        estimated_weight_kg REAL DEFAULT 0.025,
         is_demo INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # Safe migration: Check if estimated_weight_kg exists in scans table
+    cursor.execute("PRAGMA table_info(scans)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if "estimated_weight_kg" not in columns:
+        cursor.execute("ALTER TABLE scans ADD COLUMN estimated_weight_kg REAL DEFAULT 0.025")
 
     # Virtual facility bins table
     cursor.execute("""
@@ -102,16 +281,43 @@ def init_db():
     cursor.execute("SELECT COUNT(*) FROM facility_bins")
     if cursor.fetchone()[0] == 0:
         initial_bins = [
-            ("plastic", "Plastic (PET/HDPE)", 320.0, 500.0, 64.0),
-            ("paper", "Paper & Cardboard", 192.0, 400.0, 48.0),
-            ("metal", "Aluminum & Cans", 492.0, 600.0, 82.0),
-            ("glass", "Glass Containers", 175.0, 500.0, 35.0),
-            ("organic", "Organic Compost", 220.0, 400.0, 55.0),
+            ("plastic", "Plastic (PET/HDPE)", 0.0, 500.0, 0.0),
+            ("paper", "Paper & Cardboard", 0.0, 400.0, 0.0),
+            ("metal", "Aluminum & Cans", 0.0, 600.0, 0.0),
+            ("glass", "Glass Containers", 0.0, 500.0, 0.0),
+            ("organic", "Organic Compost", 0.0, 400.0, 0.0),
         ]
         cursor.executemany("""
             INSERT INTO facility_bins (stream_name, display_name, current_kg, max_kg, fill_percentage)
             VALUES (?, ?, ?, ?, ?)
         """, initial_bins)
+
+    # Backfill/update existing scans to ensure correct simulated weights
+    cursor.execute("SELECT id, filename, category, sub_category, estimated_weight_kg FROM scans")
+    existing_scans = cursor.fetchall()
+    for row in existing_scans:
+        sid, fname, cat, sub_cat, curr_est = row
+        resolved = resolve_estimated_weight(cat, sub_cat, fname)
+        if curr_est is None or curr_est <= 0.0 or (abs(curr_est - 0.025) < 0.0001 and (cat or "").lower() != "plastic"):
+            cursor.execute("UPDATE scans SET estimated_weight_kg = ? WHERE id = ?", (resolved["weight_kg"], sid))
+
+    # Recalibrate facility_bins from actual scan records in SQLite so weights accurately reflect stored items
+    for stream in ["plastic", "paper", "metal", "glass", "organic"]:
+        cursor.execute("""
+            SELECT COALESCE(SUM(estimated_weight_kg), 0.0)
+            FROM scans
+            WHERE LOWER(category) = ?
+        """, (stream,))
+        stream_weight = cursor.fetchone()[0] or 0.0
+        cursor.execute("SELECT max_kg FROM facility_bins WHERE stream_name = ?", (stream,))
+        bin_max = cursor.fetchone()
+        max_kg = bin_max[0] if bin_max else 500.0
+        fill_pct = min(100.0, round((stream_weight / max_kg) * 100.0, 2))
+        cursor.execute("""
+            UPDATE facility_bins
+            SET current_kg = ?, fill_percentage = ?
+            WHERE stream_name = ?
+        """, (round(stream_weight, 3), fill_pct, stream))
 
     conn.commit()
     conn.close()
@@ -349,6 +555,7 @@ def classify_with_gemini_vision(filepath, filename):
             "Return a strictly valid JSON object matching this schema:\n"
             "{\n"
             '  "category": "Plastic" | "Paper" | "Metal" | "Glass" | "Organic" | "General",\n'
+            '  "detected_item": "<Common item name if recognized, e.g. Plastic water bottle, Aluminium can, Apple, Paper sheet, Cardboard box, Glass bottle, or empty string>",\n'
             '  "sub_category": "<Precise polymer/alloy/biomass description, e.g. PET-1 Beverage Container, Kraft Corrugated Board, Organic Food Scrap>",\n'
             '  "confidence": <number between 88.0 and 99.8 reflecting visual classification confidence>,\n'
             '  "recyclable": <boolean true or false>,\n'
@@ -394,6 +601,7 @@ def classify_with_gemini_vision(filepath, filename):
                             cat = "General"
 
                     data["category"] = cat
+                    data["detected_item"] = str(data.get("detected_item") or "").strip()
                     data["confidence"] = round(float(data.get("confidence", 96.0)), 1)
                     data["recyclable"] = bool(data.get("recyclable", cat != "General"))
                     if not data.get("sub_category"):
@@ -442,14 +650,18 @@ def analyze_waste_image(filepath, filename):
 
     if not matched:
         # Check specific common material tokens
-        if any(w in fname for w in ["banana", "bread", "fruit", "vegetable", "snack", "meal", "salad", "pizza", "food", "scrap", "organic"]):
+        if "apple" in fname:
+            matched = ONTOLOGY.get("apple")
+        elif any(w in fname for w in ["banana", "bread", "fruit", "vegetable", "snack", "meal", "salad", "pizza", "food", "scrap", "organic"]):
             matched = ONTOLOGY.get("food")
-        elif any(w in fname for w in ["can", "tin", "soda", "coke", "pepsi", "aluminum", "metal"]):
+        elif any(w in fname for w in ["can", "tin", "soda", "coke", "pepsi", "aluminum", "aluminium", "metal"]):
             matched = ONTOLOGY.get("can")
         elif any(w in fname for w in ["bottle", "pet", "plastic", "container", "jug", "cup"]):
             matched = ONTOLOGY.get("bottle")
-        elif any(w in fname for w in ["carton", "box", "package", "cardboard", "kraft", "paper"]):
+        elif any(w in fname for w in ["carton", "box", "package", "cardboard", "kraft", "shipping"]):
             matched = ONTOLOGY.get("cardboard")
+        elif any(w in fname for w in ["paper", "sheet", "document", "print", "a4"]):
+            matched = ONTOLOGY.get("paper")
         elif any(w in fname for w in ["glass", "jar", "flint", "cullet"]):
             matched = ONTOLOGY.get("glass")
         else:
@@ -526,8 +738,9 @@ def api_stats():
         cursor.execute("SELECT COUNT(DISTINCT category) FROM scans")
         categories_count = cursor.fetchone()[0]
 
-        total_weight_kg = round(total_scans * 1.8, 1)
-        carbon_saved_kg = round(total_scans * 0.22, 1)
+        cursor.execute("SELECT COALESCE(SUM(estimated_weight_kg), 0.0) FROM scans")
+        total_weight_kg = round(cursor.fetchone()[0], 3)
+        carbon_saved_kg = round(total_weight_kg * 0.75, 2)
 
     conn.close()
 
@@ -556,13 +769,14 @@ def api_scan():
     analysis = analyze_waste_image(filepath, file.filename)
     scan_uid = f"scan-{int(datetime.datetime.now().timestamp() * 1000)}"
 
-    # Determine simulated scan item weight (configurable via SCAN_ITEM_WEIGHT_KG)
-    try:
-        item_weight = float(os.environ.get("SCAN_ITEM_WEIGHT_KG", DEFAULT_SCAN_ITEM_WEIGHT_KG))
-        if item_weight <= 0:
-            item_weight = DEFAULT_SCAN_ITEM_WEIGHT_KG
-    except (ValueError, TypeError):
-        item_weight = DEFAULT_SCAN_ITEM_WEIGHT_KG
+    # Determine simulated scan item weight via configurable item & category estimation
+    weight_info = resolve_estimated_weight(
+        category=analysis["category"],
+        sub_category=analysis.get("sub_category", ""),
+        filename=file.filename,
+        detected_item=analysis.get("detected_item", "")
+    )
+    item_weight = weight_info["weight_kg"]
 
     # Save scan record and update Digital Twin bin inside an atomic transaction
     conn = sqlite3.connect(DB_PATH)
@@ -570,8 +784,8 @@ def api_scan():
         with conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO scans (scan_uid, filename, category, sub_category, confidence, recyclable, decomposition, carbon_saved, disposal_steps, is_demo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                INSERT INTO scans (scan_uid, filename, category, sub_category, confidence, recyclable, decomposition, carbon_saved, disposal_steps, estimated_weight_kg, is_demo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             """, (
                 scan_uid,
                 file.filename,
@@ -581,7 +795,8 @@ def api_scan():
                 1 if analysis["recyclable"] else 0,
                 analysis["decomposition"],
                 analysis["carbon_saved"],
-                analysis["disposal_steps"]
+                analysis["disposal_steps"],
+                item_weight
             ))
 
             # Automatically update the corresponding Digital Twin material silo if supported
@@ -592,9 +807,10 @@ def api_scan():
                 bin_row = cursor.fetchone()
                 if bin_row:
                     curr_kg, max_kg = bin_row
-                    # Ensure current_kg never exceeds max_kg
-                    new_weight = min(max_kg, round(curr_kg + item_weight, 2))
-                    new_pct = round((new_weight / max_kg) * 100.0, 1)
+                    # Ensure current_kg never exceeds max_kg (Requirement 8)
+                    new_weight = min(max_kg, round(curr_kg + item_weight, 3))
+                    # Calculate fill_percentage as current_kg / max_kg * 100 (Requirement 7)
+                    new_pct = round((new_weight / max_kg) * 100.0, 2)
                     cursor.execute("""
                         UPDATE facility_bins
                         SET current_kg = ?, fill_percentage = ?
@@ -613,6 +829,11 @@ def api_scan():
         "decomposition": analysis["decomposition"],
         "carbon_saved": analysis["carbon_saved"],
         "disposal_steps": analysis["disposal_steps"],
+        "estimated_weight_kg": item_weight,
+        "weight_label": weight_info["item_name"],
+        "is_specific_item": weight_info["is_specific_item"],
+        "weight_is_estimate": True,
+        "weight_disclaimer": weight_info["disclaimer"],
         "is_demo": False,
         "timestamp": datetime.datetime.now().strftime("%I:%M %p")
     })
@@ -629,6 +850,7 @@ def api_history():
 
     history_list = []
     for r in rows:
+        est_w = r["estimated_weight_kg"] if "estimated_weight_kg" in r.keys() and r["estimated_weight_kg"] is not None else 0.025
         history_list.append({
             "id": r["scan_uid"],
             "filename": r["filename"],
@@ -639,6 +861,8 @@ def api_history():
             "decomposition": r["decomposition"],
             "carbon_saved": r["carbon_saved"],
             "disposal_steps": r["disposal_steps"],
+            "estimated_weight_kg": round(float(est_w), 3),
+            "weight_is_estimate": True,
             "is_demo": bool(r["is_demo"]),
             "timestamp": r["timestamp"]
         })
@@ -668,9 +892,9 @@ def api_digital_twin():
     for r in rows:
         bins_data[r["stream_name"]] = {
             "name": r["display_name"],
-            "current_kg": r["current_kg"],
-            "max_kg": r["max_kg"],
-            "fill_percentage": r["fill_percentage"]
+            "current_kg": round(float(r["current_kg"]), 3),
+            "max_kg": round(float(r["max_kg"]), 1),
+            "fill_percentage": round(float(r["fill_percentage"]), 2)
         }
 
     return jsonify({
@@ -698,7 +922,13 @@ def api_empty_bin(stream_name):
 def api_twin_inflow():
     data = request.get_json(silent=True) or {}
     stream_name = (data.get("category") or "plastic").lower()
-    weight = float(data.get("weight_kg") or 25.0)
+    
+    try:
+        weight = float(data.get("weight_kg", 0.025))
+        if weight <= 0:
+            weight = 0.025
+    except (ValueError, TypeError):
+        weight = 0.025
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -706,8 +936,8 @@ def api_twin_inflow():
     row = cursor.fetchone()
     if row:
         curr, max_kg = row
-        new_weight = min(max_kg, curr + weight)
-        new_pct = round((new_weight / max_kg) * 100.0, 1)
+        new_weight = min(max_kg, round(curr + weight, 3))
+        new_pct = round((new_weight / max_kg) * 100.0, 2)
         cursor.execute("""
             UPDATE facility_bins
             SET current_kg = ?, fill_percentage = ?
@@ -715,7 +945,7 @@ def api_twin_inflow():
         """, (new_weight, new_pct, stream_name))
         conn.commit()
     conn.close()
-    return jsonify({"success": True})
+    return jsonify({"success": True, "stream": stream_name, "added_kg": weight})
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
