@@ -9,18 +9,25 @@
 // ============================================================================
 function formatWeight(kg) {
   const val = Number(kg) || 0;
-  if (val === 0) return '0.000 kg';
-  if (val < 1) return `${val.toFixed(3)} kg`;
-  if (val < 10) return `${val.toFixed(2)} kg`;
-  return `${val.toFixed(1)} kg`;
+  // Convert kg to grams avoiding floating-point inaccuracy
+  const grams = Math.round(val * 1000 * 10000) / 10000;
+  if (grams < 1000) {
+    const formatted = Math.round(grams * 1000) / 1000;
+    return `${formatted} g`;
+  } else {
+    const roundedKg = Math.round(val * 1000) / 1000;
+    return `${roundedKg} kg`;
+  }
 }
 
 function formatWeightNumber(kg) {
   const val = Number(kg) || 0;
-  if (val === 0) return '0.000';
-  if (val < 1) return val.toFixed(3);
-  if (val < 10) return val.toFixed(2);
-  return val.toFixed(1);
+  const grams = Math.round(val * 1000 * 10000) / 10000;
+  if (grams < 1000) {
+    return Math.round(grams * 1000) / 1000;
+  } else {
+    return Math.round(val * 1000) / 1000;
+  }
 }
 
 // ============================================================================
@@ -44,12 +51,27 @@ const state = {
     totalWeightKg: 0,
     carbonSavedKg: 0
   },
+  previousStats: {
+    totalScans: null,
+    recyclableRate: null,
+    categoriesCount: null,
+    totalWeightKg: null
+  },
+  previousStreamsFill: {
+    plastic: null,
+    paper: null,
+    metal: null,
+    glass: null,
+    organic: null,
+    hazardous: null
+  },
   streams: {
-    plastic: { fill: 64, weight: 320, max: 500, name: 'Plastic Polymers', color: '#3659C9', icon: '🥤', code: 'SILO-01' },
-    paper: { fill: 48, weight: 192, max: 400, name: 'Pulp & Fibre', color: '#C87952', icon: '📦', code: 'SILO-02' },
-    metal: { fill: 82, weight: 492, max: 600, name: 'Metal Alloys', color: '#172333', icon: '🥫', code: 'SILO-03' },
-    glass: { fill: 35, weight: 175, max: 500, name: 'Glass Cullet', color: '#9CAF98', icon: '🍾', code: 'SILO-04' },
-    organic: { fill: 55, weight: 220, max: 400, name: 'Organic Biomass', color: '#8893A2', icon: '🍎', code: 'SILO-05' }
+    plastic: { fill: 0, weight: 0, max: 500, name: 'Plastic Polymers', color: '#3659C9', icon: '🥤', code: 'SILO-01' },
+    paper: { fill: 0, weight: 0, max: 400, name: 'Pulp & Fibre', color: '#C87952', icon: '📦', code: 'SILO-02' },
+    metal: { fill: 0, weight: 0, max: 600, name: 'Metal Alloys', color: '#172333', icon: '🥫', code: 'SILO-03' },
+    glass: { fill: 0, weight: 0, max: 500, name: 'Glass Cullet', color: '#9CAF98', icon: '🍾', code: 'SILO-04' },
+    organic: { fill: 0, weight: 0, max: 400, name: 'Organic Biomass', color: '#8893A2', icon: '🍎', code: 'SILO-05' },
+    hazardous: { fill: 0, weight: 0, max: 250, name: 'Hazardous Waste', color: '#D97706', icon: '⚠️', code: 'SILO-06' }
   },
   history: [],
   presets: {
@@ -209,6 +231,33 @@ const state = {
         <text x="120" y="104" font-family="JetBrains Mono, monospace" font-size="8" font-weight="600" fill="#64748B" text-anchor="middle">A4 // 80GSM</text>
         <circle cx="120" cy="90" r="65" stroke="#C87952" stroke-width="0.8" stroke-dasharray="2 4"/>
       </svg>`
+    },
+    household_battery: {
+      id: 'household_battery',
+      filename: 'sample_lithium_battery.jpg',
+      name: 'Lithium-Ion Battery',
+      category: 'Hazardous',
+      subCategory: 'Lithium-Ion Polymer Cell (Regulated)',
+      confidence: 98.9,
+      recyclable: false,
+      estimated_weight_kg: 0.050,
+      decomposition: '100+ Years (Toxic Persistence)',
+      carbonOffset: '0.0 kg CO2e',
+      disposalProtocol: '⚠️ CRITICAL SAFETY: Keep strictly separate from ordinary curbside recyclables and trash bins to prevent truck fires. Tape exposed terminal contacts with non-conductive electrical tape. Transport to an authorized municipal Household Hazardous Waste (HHW) depot or certified retail battery take-back kiosk.',
+      reuseOptions: 'Specialized industrial pyrometallurgical and hydrometallurgical closed-loop refining to extract high-purity cobalt, nickel, and battery-grade lithium.',
+      recyclingTips: 'Never puncture, crush, or incinerate battery cells. Always follow regional municipal hazardous-waste collection regulations.',
+      svg: `<svg viewBox="0 0 240 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="180" fill="#0E1622"/>
+        <line x1="20" y1="90" x2="220" y2="90" stroke="#1E293B" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="120" y1="15" x2="120" y2="165" stroke="#1E293B" stroke-width="1" stroke-dasharray="3 3"/>
+        <rect x="110" y="32" width="20" height="8" fill="#D97706" rx="1"/>
+        <rect x="85" y="40" width="70" height="105" rx="4" fill="#1C1917" stroke="#D97706" stroke-width="2"/>
+        <line x1="85" y1="75" x2="155" y2="75" stroke="#D97706" stroke-width="1.2" stroke-dasharray="2 3"/>
+        <text x="120" y="62" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#F59E0B" text-anchor="middle">LI-ION</text>
+        <path d="M120 85 L110 105 H122 L118 125 L132 101 H120 Z" fill="#D97706" stroke="#FEF3C7" stroke-width="0.8"/>
+        <text x="120" y="137" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#D97706" text-anchor="middle">⚠️ HAZARDOUS</text>
+        <circle cx="120" cy="90" r="65" stroke="#D97706" stroke-width="0.8" stroke-dasharray="2 4"/>
+      </svg>`
     }
   }
 };
@@ -226,6 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initDigitalTwin();
   initInsightsCharts();
   initHistoryLedger();
+  initScrollReveals();
 
   // Initial Health Check
   checkBackendHealth();
@@ -289,6 +339,48 @@ function navigateToSection(sectionId) {
 function updateActiveNav(sectionId) {
   document.querySelectorAll('.nav-menu-link').forEach(link => {
     link.classList.toggle('active', link.getAttribute('data-section') === sectionId);
+  });
+}
+
+// ============================================================================
+// Architectural Scroll Reveals (IntersectionObserver with 1-time trigger)
+// ============================================================================
+function initScrollReveals() {
+  if (!('IntersectionObserver' in window)) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const targetSelectors = [
+    '#section-scanner',
+    '#section-twin',
+    '#section-insights',
+    '.scanner-card-column',
+    '.twin-workspace-card',
+    '.silo-telemetry-card',
+    '.ai-advisor-panel-card',
+    '.advisor-sub-block',
+    '.analytics-chart-card',
+    '.ledger-table-container'
+  ];
+
+  const elements = document.querySelectorAll(targetSelectors.join(', '));
+  if (!elements || elements.length === 0) return;
+
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-revealed');
+        obs.unobserve(entry.target); // Animate each element only once
+      }
+    });
+  }, {
+    root: null,
+    rootMargin: '0px 0px -50px 0px',
+    threshold: 0.06
+  });
+
+  elements.forEach(el => {
+    el.classList.add('reveal-pending');
+    observer.observe(el);
   });
 }
 
@@ -385,20 +477,100 @@ async function syncLiveTelemetry() {
   }
 }
 
+// ============================================================================
+// Smooth Numerical Transitions (Architectural Interpolation)
+// ============================================================================
+function animateNumberTransition(element, startVal, endVal, options = {}) {
+  if (!element) return;
+  const {
+    duration = 750,
+    decimals = 0,
+    suffix = '',
+    isWeight = false
+  } = options;
+
+  const start = Number(startVal) || 0;
+  const end = Number(endVal) || 0;
+
+  const renderValue = (val) => {
+    if (isWeight) {
+      const grams = Math.round(val * 1000 * 10000) / 10000;
+      if (grams < 1000) {
+        const formatted = Math.round(grams * 10) / 10;
+        const display = formatted % 1 === 0 ? formatted : formatted.toFixed(1);
+        element.innerHTML = `${display} <abbr title="Grams">g</abbr>`;
+      } else {
+        const kgVal = Math.round(val * 100) / 100;
+        const display = kgVal % 1 === 0 ? kgVal : kgVal.toFixed(2);
+        element.innerHTML = `${display} <abbr title="Kilograms">kg</abbr>`;
+      }
+    } else {
+      const formatted = decimals > 0 ? val.toFixed(decimals) : Math.round(val);
+      element.textContent = `${formatted}${suffix}`;
+    }
+  };
+
+  // If identical, render once and skip animation loop (prevents re-counting on polling)
+  if (start === end) {
+    renderValue(end);
+    return;
+  }
+
+  // If user prefers reduced motion, update immediately without animation
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    renderValue(end);
+    return;
+  }
+
+  const startTime = performance.now();
+
+  function updateFrame(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Editorial cubic ease-out curve
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = start + (end - start) * ease;
+
+    renderValue(current);
+
+    if (progress < 1) {
+      requestAnimationFrame(updateFrame);
+    } else {
+      renderValue(end);
+    }
+  }
+
+  requestAnimationFrame(updateFrame);
+}
+
 function renderHeroMetrics() {
   const elScans = document.getElementById('heroStatScans');
   const elRate = document.getElementById('heroStatRate');
   const elCats = document.getElementById('heroStatCategories');
   const elWeight = document.getElementById('heroStatWeight');
 
-  if (elScans) elScans.textContent = state.stats.totalScans;
-  if (elRate) elRate.textContent = `${state.stats.recyclableRate}%`;
-  if (elCats) elCats.textContent = state.stats.categoriesCount;
-  if (elWeight) {
-    const val = Number(state.stats.totalWeightKg) || 0;
-    const str = val < 1 && val > 0 ? val.toFixed(3) : val.toFixed(1);
-    elWeight.innerHTML = `${str} <abbr title="Kilograms">kg</abbr>`;
-  }
+  const currScans = Number(state.stats.totalScans) || 0;
+  const currRate = Number(state.stats.recyclableRate) || 0;
+  const currCats = Number(state.stats.categoriesCount) || 0;
+  const currWeight = Number(state.stats.totalWeightKg) || 0;
+
+  const prev = state.previousStats;
+
+  // Animate scans
+  animateNumberTransition(elScans, prev.totalScans !== null ? prev.totalScans : 0, currScans, { duration: 700 });
+  prev.totalScans = currScans;
+
+  // Animate recyclable rate
+  animateNumberTransition(elRate, prev.recyclableRate !== null ? prev.recyclableRate : 0, currRate, { duration: 750, suffix: '%' });
+  prev.recyclableRate = currRate;
+
+  // Animate categories
+  animateNumberTransition(elCats, prev.categoriesCount !== null ? prev.categoriesCount : 0, currCats, { duration: 650 });
+  prev.categoriesCount = currCats;
+
+  // Animate weight
+  animateNumberTransition(elWeight, prev.totalWeightKg !== null ? prev.totalWeightKg : 0, currWeight, { duration: 800, isWeight: true });
+  prev.totalWeightKg = currWeight;
 }
 
 // ============================================================================
@@ -628,6 +800,10 @@ function resetScannerStage() {
   const guideEmpty = document.getElementById('guidanceEmptyState');
   const guideActive = document.getElementById('guidanceActiveBody');
   const stepper = document.getElementById('scanningStepper');
+  const stage = document.getElementById('viewfinderStage');
+
+  if (stage) stage.classList.remove('scanning');
+  state.isScanning = false;
 
   if (resEmpty) resEmpty.style.display = 'flex';
   if (resActive) resActive.classList.remove('active');
@@ -668,75 +844,90 @@ async function executeAnalysisWorkflow() {
     if (stepperSub) stepperSub.textContent = sub;
   };
 
-  updateProgress(25, 'Optical feature extraction...', 'ViT patch embedding & spatial bounding');
-  await new Promise(r => setTimeout(r, 350));
-
-  updateProgress(60, 'Spectrometric tensor conversion...', 'Evaluating polymer/alloy density vs. material ontology');
-  await new Promise(r => setTimeout(r, 450));
-
-  updateProgress(85, 'Formulating circular disposal route...', 'Calculating decomposition bounds & energy savings');
-  await new Promise(r => setTimeout(r, 300));
-
   let scanResult = null;
 
   try {
-    const formData = new FormData();
-    if (state.currentUploadedFile) {
-      formData.append('image', state.currentUploadedFile);
-    } else if (state.selectedPresetKey) {
-      const preset = state.presets[state.selectedPresetKey];
-      const blob = new Blob([preset.svg], { type: 'image/svg+xml' });
-      formData.append('image', blob, preset.filename);
+    updateProgress(25, 'Optical feature extraction...', 'ViT patch embedding & spatial bounding');
+    await new Promise(r => setTimeout(r, 350));
+
+    updateProgress(60, 'Spectrometric tensor conversion...', 'Evaluating polymer/alloy density vs. material ontology');
+    await new Promise(r => setTimeout(r, 450));
+
+    updateProgress(85, 'Formulating circular disposal route...', 'Calculating decomposition bounds & energy savings');
+    await new Promise(r => setTimeout(r, 300));
+
+    try {
+      const formData = new FormData();
+      if (state.currentUploadedFile) {
+        formData.append('image', state.currentUploadedFile);
+      } else if (state.selectedPresetKey) {
+        const preset = state.presets[state.selectedPresetKey];
+        const blob = new Blob([preset.svg], { type: 'image/svg+xml' });
+        formData.append('image', blob, preset.filename);
+      }
+
+      const response = await fetch('/api/scan', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        scanResult = await response.json();
+      } else {
+        throw new Error(`Inference API returned HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.warn('Live API unavailable. Using verified deterministic fallback:', err);
+      const fallbackPreset = state.presets[state.selectedPresetKey] || state.presets.plastic_bottle;
+      scanResult = {
+        id: `scan-${Date.now()}`,
+        filename: state.currentUploadedFile ? state.currentUploadedFile.name : fallbackPreset.filename,
+        category: fallbackPreset.category,
+        sub_category: fallbackPreset.subCategory,
+        confidence: fallbackPreset.confidence,
+        recyclable: fallbackPreset.recyclable,
+        decomposition: fallbackPreset.decomposition,
+        carbon_saved: fallbackPreset.carbonOffset,
+        disposal_steps: fallbackPreset.disposalProtocol,
+        estimated_weight_kg: fallbackPreset.estimated_weight_kg || 0.025,
+        weight_is_estimate: true,
+        is_demo: true,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
     }
 
-    const response = await fetch('/api/scan', {
-      method: 'POST',
-      body: formData
-    });
+    updateProgress(100, 'Classification verified.', 'Neural confidence confirmed');
+    await new Promise(r => setTimeout(r, 200));
 
-    if (response.ok) {
-      scanResult = await response.json();
-    } else {
-      throw new Error(`Inference API returned HTTP ${response.status}`);
-    }
-  } catch (err) {
-    console.warn('Live API unavailable. Using verified deterministic fallback:', err);
-    const fallbackPreset = state.presets[state.selectedPresetKey] || state.presets.plastic_bottle;
-    scanResult = {
-      id: `scan-${Date.now()}`,
-      filename: state.currentUploadedFile ? state.currentUploadedFile.name : fallbackPreset.filename,
-      category: fallbackPreset.category,
-      sub_category: fallbackPreset.subCategory,
-      confidence: fallbackPreset.confidence,
-      recyclable: fallbackPreset.recyclable,
-      decomposition: fallbackPreset.decomposition,
-      carbon_saved: fallbackPreset.carbonOffset,
-      disposal_steps: fallbackPreset.disposalProtocol,
-      estimated_weight_kg: fallbackPreset.estimated_weight_kg || 0.025,
-      weight_is_estimate: true,
-      is_demo: true,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+  } finally {
+    // Teardown scanning UI - strictly stops on success, error, or cancellation
+    if (stage) stage.classList.remove('scanning');
+    if (stepper) stepper.classList.remove('active');
+    if (btnTrigger) btnTrigger.removeAttribute('disabled');
+    state.isScanning = false;
   }
 
-  updateProgress(100, 'Classification verified.', 'Neural confidence confirmed');
-  await new Promise(r => setTimeout(r, 200));
+  if (scanResult) {
+    state.currentClassification = scanResult;
+    displayClassification(scanResult);
 
-  // Teardown scanning UI
-  if (stage) stage.classList.remove('scanning');
-  if (stepper) stepper.classList.remove('active');
-  if (btnTrigger) btnTrigger.removeAttribute('disabled');
-  state.isScanning = false;
+    if (scanResult.is_demo) {
+      const streamKey = (scanResult.category || 'plastic').toLowerCase();
+      if (state.streams[streamKey]) {
+        const s = state.streams[streamKey];
+        s.weight = Math.min(s.max, Number((s.weight + (scanResult.estimated_weight_kg || 0.025)).toFixed(3)));
+        s.fill = Math.min(100, Number(((s.weight / s.max) * 100).toFixed(2)));
+        updateTwinDisplay();
+      }
+    } else {
+      // Sync telemetry so hero metrics & twin update immediately from SQLite
+      await syncLiveTelemetry();
+      await fetchLiveHistory();
+    }
+    loadPersonalizedRecommendations(false);
 
-  state.currentClassification = scanResult;
-  displayClassification(scanResult);
-
-  // Sync telemetry so hero metrics update immediately from SQLite
-  await syncLiveTelemetry();
-  await fetchLiveHistory();
-  loadPersonalizedRecommendations(false);
-
-  triggerSystemToast(`Classified: ${scanResult.category} (${scanResult.confidence}%)`, 'success');
+    triggerSystemToast(`Classified: ${scanResult.category} (${scanResult.confidence}%)`, 'success');
+  }
 }
 
 function displayClassification(result) {
@@ -787,6 +978,7 @@ function displayClassification(result) {
   // Area 02: Estimated Item Mass Display
   const elWeight = document.getElementById('resWeightDisplay');
   const elDispatchAnnot = document.getElementById('dispatchWeightAnnotation');
+  const btnDispatch = document.getElementById('btnDispatchToSilo');
   const estWeight = Number(result.estimated_weight_kg) || 0.025;
   const weightFormatted = formatWeight(estWeight);
 
@@ -795,7 +987,17 @@ function displayClassification(result) {
     elWeight.title = "Simulated reference estimate; not a physical scale measurement";
   }
   if (elDispatchAnnot) {
-    elDispatchAnnot.textContent = `Route specimen (~${weightFormatted} Est.) to the simulated recycling silo.`;
+    const catLower = (result.category || '').toLowerCase();
+    if (catLower === 'hazardous') {
+      elDispatchAnnot.textContent = `Specimen automatically routed to HAZARDOUS Waste Silo (~${weightFormatted} Est. Warning: Segregate from ordinary recyclables).`;
+    } else if (catLower === 'uncertain') {
+      elDispatchAnnot.textContent = `Specimen flagged as UNCERTAIN (~${weightFormatted} Est.). Segregated from standard recycling streams pending verification.`;
+    } else {
+      elDispatchAnnot.textContent = `Specimen automatically routed to ${result.category.toUpperCase()} Silo (~${weightFormatted} Est.).`;
+    }
+  }
+  if (btnDispatch) {
+    btnDispatch.innerHTML = '<span>View in Silo</span> <span class="btn-arrow">→</span>';
   }
 
   const streamNames = {
@@ -803,7 +1005,9 @@ function displayClassification(result) {
     'Paper': 'Stream 02 // Pulp & Fibre',
     'Metal': 'Stream 03 // Alloys',
     'Glass': 'Stream 04 // Cullet',
-    'Organic': 'Stream 05 // Biomass'
+    'Organic': 'Stream 05 // Biomass',
+    'Hazardous': 'Stream 06 // Hazardous Waste',
+    'Uncertain': 'Segregated // Unverified Specimen'
   };
   if (elStream) elStream.textContent = streamNames[result.category] || 'Stream 01';
 
@@ -851,41 +1055,18 @@ function displayClassification(result) {
 }
 
 // ============================================================================
-// Dispatch to Digital Twin Silo
+// Navigate / View in Digital Twin Silo (Specimen is already routed on scan)
 // ============================================================================
-async function dispatchToDigitalTwin() {
+function dispatchToDigitalTwin() {
   if (!state.currentClassification) {
-    triggerSystemToast('No active classification to route.', 'error');
+    triggerSystemToast('No active classification to view.', 'error');
     return;
   }
 
   const category = (state.currentClassification.category || 'plastic').toLowerCase();
-  const weight = Number(state.currentClassification.estimated_weight_kg) || 0.025;
-  const weightFormatted = formatWeight(weight);
-
-  try {
-    const res = await fetch('/api/digital-twin/inflow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, weight_kg: weight })
-    });
-
-    if (res.ok) {
-      triggerSystemToast(`Routed specimen to ${category.toUpperCase()} Silo (+${weightFormatted} estimated).`, 'success');
-      await syncLiveTelemetry();
-    } else {
-      throw new Error('API routing failed');
-    }
-  } catch (err) {
-    // Client-side fallback
-    if (state.streams[category]) {
-      const s = state.streams[category];
-      s.weight = Math.min(s.max, Number((s.weight + weight).toFixed(3)));
-      s.fill = Number(((s.weight / s.max) * 100).toFixed(2));
-      updateTwinDisplay();
-      triggerSystemToast(`[Client] Routed to ${category.toUpperCase()} Silo (+${weightFormatted} estimated).`, 'info');
-    }
-  }
+  navigateToSection('twin');
+  selectFacilityStation(category);
+  triggerSystemToast(`Navigated to ${category.toUpperCase()} Silo in Digital Twin.`, 'info');
 }
 
 // ============================================================================
@@ -968,7 +1149,7 @@ async function flushStationSilo(streamKey) {
         state.streams[streamKey].weight = 0;
       }
       updateTwinDisplay();
-      triggerSystemToast(`Flushed ${streamKey.toUpperCase()} Silo (0 kg).`, 'success');
+      triggerSystemToast(`Flushed ${streamKey.toUpperCase()} Silo (0 g).`, 'success');
       await syncLiveTelemetry();
       return;
     }
@@ -980,7 +1161,7 @@ async function flushStationSilo(streamKey) {
     state.streams[streamKey].fill = 0;
     state.streams[streamKey].weight = 0;
     updateTwinDisplay();
-    triggerSystemToast(`[Client] Flushed ${streamKey.toUpperCase()} Silo.`, 'info');
+    triggerSystemToast(`[Client] Flushed ${streamKey.toUpperCase()} Silo (0 g).`, 'info');
   }
 }
 
@@ -1000,25 +1181,15 @@ function toggleConveyorSimulation() {
   if (state.isStreamSimulating) {
     if (label) label.textContent = 'Pause Flow Simulation';
     if (viewport) viewport.classList.add('simulating');
-    triggerSystemToast('Conveyor stream simulation active.', 'info');
-
-    state.simInterval = setInterval(() => {
-      const keys = Object.keys(state.streams);
-      const randKey = keys[Math.floor(Math.random() * keys.length)];
-      const stream = state.streams[randKey];
-
-      if (stream.fill < 95) {
-        stream.weight = Math.min(stream.max, stream.weight + Math.floor(Math.random() * 8) + 2);
-        stream.fill = Math.round((stream.weight / stream.max) * 100);
-        updateTwinDisplay();
-      }
-    }, 3500);
+    triggerSystemToast('Conveyor stream visual flow active.', 'info');
   } else {
     if (label) label.textContent = 'Simulate Material Flow';
     if (viewport) viewport.classList.remove('simulating');
-    clearInterval(state.simInterval);
-    state.simInterval = null;
-    triggerSystemToast('Conveyor stream simulation paused.', 'info');
+    if (state.simInterval) {
+      clearInterval(state.simInterval);
+      state.simInterval = null;
+    }
+    triggerSystemToast('Conveyor stream visual flow paused.', 'info');
   }
 }
 
@@ -1029,7 +1200,8 @@ function updateTwinDisplay() {
     paper: document.getElementById('bpValPaper'),
     metal: document.getElementById('bpValMetal'),
     glass: document.getElementById('bpValGlass'),
-    organic: document.getElementById('bpValOrganic')
+    organic: document.getElementById('bpValOrganic'),
+    hazardous: document.getElementById('bpValHazardous')
   };
 
   Object.keys(mapSvg).forEach(k => {
@@ -1047,7 +1219,8 @@ function updateTwinDisplay() {
     paper: { pct: 'cardPctPaper', fill: 'cardFillPaper', weight: 'cardWeightPaper' },
     metal: { pct: 'cardPctMetal', fill: 'cardFillMetal', weight: 'cardWeightMetal' },
     glass: { pct: 'cardPctGlass', fill: 'cardFillGlass', weight: 'cardWeightGlass' },
-    organic: { pct: 'cardPctOrganic', fill: 'cardFillOrganic', weight: 'cardWeightOrganic' }
+    organic: { pct: 'cardPctOrganic', fill: 'cardFillOrganic', weight: 'cardWeightOrganic' },
+    hazardous: { pct: 'cardPctHazardous', fill: 'cardFillHazardous', weight: 'cardWeightHazardous' }
   };
 
   Object.keys(mapCards).forEach(k => {
@@ -1062,7 +1235,19 @@ function updateTwinDisplay() {
     const fillText = stream.fill < 1 && stream.fill > 0 ? stream.fill.toFixed(1) : Math.round(stream.fill);
     if (elPct) elPct.textContent = `${fillText}%`;
     if (elFill) elFill.style.width = `${Math.min(100, stream.fill)}%`;
-    if (elWeight) elWeight.textContent = `${formatWeightNumber(stream.weight)} / ${stream.max} kg`;
+    if (elWeight) elWeight.textContent = `${formatWeight(stream.weight)} / ${formatWeight(stream.max)}`;
+
+    // Trigger subtle indicator pulse when bin telemetry value actually changes
+    if (state.previousStreamsFill && state.previousStreamsFill[k] !== null && state.previousStreamsFill[k] !== stream.fill) {
+      const cardEl = document.querySelector(`.silo-telemetry-card[data-stream="${k}"]`);
+      if (cardEl && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        cardEl.classList.remove('fill-updated');
+        void cardEl.offsetWidth; // Trigger reflow for clean restart
+        cardEl.classList.add('fill-updated');
+        setTimeout(() => cardEl.classList.remove('fill-updated'), 1200);
+      }
+    }
+    state.previousStreamsFill[k] = stream.fill;
   });
 }
 
@@ -1081,10 +1266,10 @@ function initInsightsCharts() {
     compositionChartInstance = new Chart(donutCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Polymers (Plastic)', 'Pulp & Fibre (Paper)', 'Alloys (Metal)', 'Cullet (Glass)', 'Biomass (Organic)'],
+        labels: ['Polymers (Plastic)', 'Pulp & Fibre (Paper)', 'Alloys (Metal)', 'Cullet (Glass)', 'Biomass (Organic)', 'Hazardous (Regulated)'],
         datasets: [{
-          data: [35, 25, 20, 12, 8],
-          backgroundColor: ['#3659C9', '#C87952', '#172333', '#9CAF98', '#8893A2'],
+          data: [32, 24, 18, 12, 8, 6],
+          backgroundColor: ['#3659C9', '#C87952', '#172333', '#9CAF98', '#8893A2', '#D97706'],
           borderColor: '#FFFFFF',
           borderWidth: 2,
           hoverOffset: 4
@@ -1180,7 +1365,7 @@ function updateInsightsCharts() {
   if (!compositionChartInstance) return;
 
   // If items have been scanned, update composition dynamically
-  const counts = { Plastic: 0, Paper: 0, Metal: 0, Glass: 0, Organic: 0 };
+  const counts = { Plastic: 0, Paper: 0, Metal: 0, Glass: 0, Organic: 0, Hazardous: 0 };
   state.history.forEach(h => {
     if (counts[h.category] !== undefined) {
       counts[h.category]++;
@@ -1194,7 +1379,8 @@ function updateInsightsCharts() {
       counts.Paper,
       counts.Metal,
       counts.Glass,
-      counts.Organic
+      counts.Organic,
+      counts.Hazardous
     ];
     compositionChartInstance.update();
   }
@@ -1325,7 +1511,8 @@ function getStreamIcon(cat) {
     'Paper': '📦',
     'Metal': '🥫',
     'Glass': '🍾',
-    'Organic': '🍎'
+    'Organic': '🍎',
+    'Hazardous': '⚠️'
   };
   return icons[cat] || '✦';
 }

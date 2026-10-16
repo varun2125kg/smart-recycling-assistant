@@ -59,6 +59,7 @@
   /* Transitions */
   --transition-fast: 0.15s ease-out;
   --transition-normal: 0.25s ease-out;
+  --transition-button: 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ============================================================================
@@ -102,7 +103,23 @@ button {
   cursor: pointer;
   border: none;
   background: none;
-  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.specimen-preset-card:focus-visible,
+.silo-telemetry-card:focus-visible,
+.twin-svg-station:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--color-primary-tint);
 }
 
 /* App Shell */
@@ -185,23 +202,48 @@ button {
 }
 
 .nav-menu-link {
+  position: relative;
   padding: 0.45rem 0.9rem;
   font-size: 0.86rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   border-radius: var(--radius-xs);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--transition-button), background-color var(--transition-button);
 }
 
-.nav-menu-link:hover {
-  color: var(--color-text-primary);
-  background-color: var(--bg-hover);
+.nav-menu-link::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 0.9rem;
+  right: 0.9rem;
+  height: 2px;
+  background-color: var(--color-primary);
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-menu-link:hover {
+    color: var(--color-text-primary);
+    background-color: var(--bg-hover);
+  }
+
+  .nav-menu-link:hover::after {
+    transform: scaleX(1);
+  }
 }
 
 .nav-menu-link.active {
   color: var(--color-primary);
   font-weight: 600;
   background-color: var(--color-primary-tint);
+}
+
+.nav-menu-link.active::after {
+  transform: scaleX(1);
 }
 
 /* Nav Telemetry & Actions */
@@ -240,7 +282,7 @@ button {
   background-color: var(--color-orange);
 }
 
-/* Action Buttons (Architectural & Precise) */
+/* Action Buttons (Architectural, Modern & Precise) */
 .btn-primary-action {
   display: inline-flex;
   align-items: center;
@@ -252,17 +294,25 @@ button {
   padding: 0.55rem 1.1rem;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-primary);
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-button),
+              border-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
   white-space: nowrap;
 }
 
-.btn-primary-action:hover {
-  background-color: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary-action:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(54, 89, 201, 0.24);
+  }
 }
 
-.btn-primary-action:active {
-  transform: translateY(1px);
+.btn-primary-action:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }
 
 .btn-primary-action.large {
@@ -285,14 +335,18 @@ button {
   cursor: not-allowed;
   background-color: var(--border-medium);
   border-color: var(--border-medium);
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-arrow {
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-button);
 }
 
-.btn-primary-action:hover .btn-arrow {
-  transform: translateX(3px);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary-action:hover:not(:disabled) .btn-arrow {
+    transform: translateX(3px);
+  }
 }
 
 .btn-secondary-action {
@@ -306,13 +360,33 @@ button {
   padding: 0.55rem 1.1rem;
   border-radius: var(--radius-xs);
   border: 1px solid var(--border-subtle);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-button),
+              background-color var(--transition-button),
+              color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
   white-space: nowrap;
 }
 
-.btn-secondary-action:hover {
-  border-color: var(--border-medium);
-  background-color: var(--bg-hover);
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary-action:hover:not(:disabled) {
+    border-color: var(--border-medium);
+    background-color: var(--bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 35, 51, 0.06);
+  }
+}
+
+.btn-secondary-action:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+
+.btn-secondary-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-secondary-action.large {
@@ -375,10 +449,24 @@ button {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
   background: var(--bg-canvas);
+  transition: border-color var(--transition-button),
+              background-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
 }
 
-.announcement-refresh-btn:hover {
-  border-color: var(--color-primary);
+@media (hover: hover) and (pointer: fine) {
+  .announcement-refresh-btn:hover {
+    border-color: var(--color-primary);
+    background-color: var(--bg-surface);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(54, 89, 201, 0.12);
+  }
+}
+
+.announcement-refresh-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }
 
 .system-announcement-strip.live .announcement-code {
@@ -655,16 +743,34 @@ button {
   padding: 1.75rem 1rem;
   text-align: center;
   cursor: pointer;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-button),
+              background-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
   position: relative;
   margin-bottom: 1.25rem;
 }
 
-.upload-dropzone-surface:hover,
-.upload-dropzone-surface.drag-over,
+@media (hover: hover) and (pointer: fine) {
+  .upload-dropzone-surface:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-tint);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(54, 89, 201, 0.08);
+  }
+}
+
+.upload-dropzone-surface.drag-over {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint);
+  border-style: solid;
+  transform: scale(1.015);
+  box-shadow: 0 6px 20px rgba(54, 89, 201, 0.14);
+}
+
 .upload-dropzone-surface.has-file {
   border-color: var(--color-primary);
-  background: var(--color-primary-tint);
+  background-color: var(--color-primary-tint);
 }
 
 .dropzone-selected-preview {
@@ -730,18 +836,29 @@ button {
   background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-button),
+              background-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
   text-align: left;
 }
 
-.specimen-preset-card:hover {
-  border-color: var(--border-medium);
-  background: var(--bg-hover);
+@media (hover: hover) and (pointer: fine) {
+  .specimen-preset-card:hover {
+    border-color: var(--color-primary);
+    background-color: var(--bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(54, 89, 201, 0.08);
+  }
+}
+
+.specimen-preset-card:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .specimen-preset-card.selected {
   border-color: var(--color-primary);
-  background: var(--color-primary-tint);
+  background-color: var(--color-primary-tint);
 }
 
 .preset-icon {
@@ -810,19 +927,43 @@ button {
   right: 0;
   height: 2px;
   background: var(--color-primary);
-  box-shadow: 0 0 8px rgba(54, 89, 201, 0.8);
+  box-shadow: 0 0 8px rgba(54, 89, 201, 0.5), 0 1px 3px rgba(54, 89, 201, 0.3);
   opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.25s ease-out;
+}
+
+.reticle-laser-line::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: linear-gradient(to top, rgba(54, 89, 201, 0.16), rgba(54, 89, 201, 0));
+  pointer-events: none;
+}
+
+.reticle-laser-line::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: linear-gradient(to bottom, rgba(54, 89, 201, 0.08), rgba(54, 89, 201, 0));
   pointer-events: none;
 }
 
 .viewfinder-stage-box.scanning .reticle-laser-line {
   opacity: 1;
-  animation: laserScanSweep 1.6s ease-in-out infinite alternate;
+  animation: laserScanSweep 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 
 @keyframes laserScanSweep {
-  0% { top: 5%; }
-  100% { top: 92%; }
+  0% { top: 4%; }
+  100% { top: 94%; }
 }
 
 .stage-overlay-actions {
@@ -842,11 +983,23 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-xs);
   backdrop-filter: blur(4px);
+  transition: background-color var(--transition-button),
+              border-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
 }
 
-.stage-mini-btn:hover {
-  background: #172333;
-  border-color: #FFFFFF;
+@media (hover: hover) and (pointer: fine) {
+  .stage-mini-btn:hover {
+    background: #172333;
+    border-color: #FFFFFF;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.stage-mini-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* Stepper Panel */
@@ -1204,11 +1357,30 @@ button {
 }
 
 .twin-svg-station {
-  transition: transform var(--transition-fast);
+  cursor: pointer;
+  transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 .twin-svg-station:hover {
-  opacity: 0.85;
+  opacity: 0.95;
+  filter: drop-shadow(0 2px 5px rgba(23, 35, 51, 0.08));
+}
+
+.twin-svg-station:hover rect {
+  stroke-width: 2.2px;
+}
+
+.blueprint-interactive-node {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.blueprint-interactive-node:hover {
+  filter: drop-shadow(0 2px 6px rgba(23, 35, 51, 0.08));
+}
+
+.facility-flow-particles {
+  pointer-events: none;
 }
 
 /* Directional Pulsing Flow */
@@ -1226,11 +1398,11 @@ button {
   100% { stroke-dashoffset: 0; }
 }
 
-/* 5 Silo Telemetry Cards Grid */
+/* 6 Silo Telemetry Cards Grid */
 .twin-station-cards-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.85rem;
 }
 
 .silo-telemetry-card {
@@ -1239,16 +1411,43 @@ button {
   border-radius: var(--radius-xs);
   padding: 0.95rem;
   cursor: pointer;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-button),
+              background-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
 }
 
-.silo-telemetry-card:hover {
-  border-color: var(--border-medium);
+@media (hover: hover) and (pointer: fine) {
+  .silo-telemetry-card:hover {
+    border-color: var(--border-medium);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 35, 51, 0.06);
+  }
 }
 
 .silo-telemetry-card.selected {
   border-color: var(--color-primary);
   background: var(--color-primary-tint);
+}
+
+.silo-telemetry-card.selected[data-stream="hazardous"] {
+  border-color: #D97706;
+  background: #FEF3C7;
+}
+
+.silo-telemetry-card.fill-updated {
+  animation: siloFillPulse 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes siloFillPulse {
+  0% {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-tint), 0 2px 8px rgba(54, 89, 201, 0.15);
+  }
+  100% {
+    border-color: var(--border-subtle);
+    box-shadow: none;
+  }
 }
 
 .silo-card-header {
@@ -1281,7 +1480,8 @@ button {
 .silo-gauge-fill {
   height: 100%;
   width: 0%;
-  transition: width 0.4s ease;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
 }
 
 .silo-weight-stats {
@@ -1304,12 +1504,25 @@ button {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
-  transition: all var(--transition-fast);
+  transition: color var(--transition-button),
+              border-color var(--transition-button),
+              background-color var(--transition-button),
+              transform var(--transition-button),
+              box-shadow var(--transition-button);
 }
 
-.silo-flush-btn:hover {
-  color: var(--color-text-primary);
-  border-color: var(--border-medium);
+@media (hover: hover) and (pointer: fine) {
+  .silo-flush-btn:hover {
+    color: var(--color-text-primary);
+    border-color: var(--border-medium);
+    background-color: var(--bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(23, 35, 51, 0.05);
+  }
+}
+
+.silo-flush-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* ============================================================================
@@ -1514,6 +1727,18 @@ button {
   border-color: #E2D7C3;
 }
 
+.stream-pill-tag.hazardous {
+  background: #FEF3C7;
+  color: #B45309;
+  border-color: rgba(217, 119, 6, 0.3);
+}
+
+.stream-pill-tag.uncertain {
+  background: #F3F4F6;
+  color: #4B5563;
+  border-color: #D1D5DB;
+}
+
 /* ============================================================================
    FOOTER
    ============================================================================ */
@@ -1590,10 +1815,18 @@ button {
   font-size: 1.1rem;
   color: var(--color-text-muted);
   padding: 0.25rem 0.5rem;
+  transition: color var(--transition-button), transform var(--transition-button);
 }
 
-.modal-close-trigger:hover {
-  color: var(--color-text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .modal-close-trigger:hover {
+    color: var(--color-text-primary);
+    transform: translateY(-2px);
+  }
+}
+
+.modal-close-trigger:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* ============================================================================
@@ -2123,5 +2356,146 @@ button {
   }
   .advisor-sub-block-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   ARCHITECTURAL MOTION SYSTEM (Editorial, Restrained, Performance-Optimized)
+   ============================================================================ */
+
+/* Page Entrance Keyframe (Restrained 20px rise: within 18-24px specification, editorial easing) */
+@keyframes pageFadeRise {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered Page Entrance Sequence (80ms - 140ms steps, professional and non-blocking) */
+.hero-narrative-column .eyebrow-label {
+  animation: pageFadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both;
+}
+
+.hero-editorial-headline {
+  animation: pageFadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both;
+}
+
+.hero-supporting-lead {
+  animation: pageFadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+}
+
+.hero-actions-group {
+  animation: pageFadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+}
+
+.hero-metrics-bar {
+  animation: pageFadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.44s both;
+}
+
+.hero-illustration-column {
+  animation: pageFadeRise 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both;
+}
+
+/* Scroll Reveal Classes (18px rise: within 16-22px specification) */
+/* Base: Elements remain 100% visible if JS is disabled or fails */
+.reveal-pending {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-pending.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered card groups for architectural scroll entry */
+.scanner-card-column:nth-child(1) { transition-delay: 0.04s; }
+.scanner-card-column:nth-child(2) { transition-delay: 0.14s; }
+
+.silo-telemetry-card:nth-child(1) { transition-delay: 0.03s; }
+.silo-telemetry-card:nth-child(2) { transition-delay: 0.08s; }
+.silo-telemetry-card:nth-child(3) { transition-delay: 0.13s; }
+.silo-telemetry-card:nth-child(4) { transition-delay: 0.18s; }
+.silo-telemetry-card:nth-child(5) { transition-delay: 0.23s; }
+.silo-telemetry-card:nth-child(6) { transition-delay: 0.28s; }
+
+.analytics-chart-card:nth-child(1) { transition-delay: 0.05s; }
+.analytics-chart-card:nth-child(2) { transition-delay: 0.15s; }
+
+.advisor-sub-block:nth-child(1) { transition-delay: 0.04s; }
+.advisor-sub-block:nth-child(2) { transition-delay: 0.14s; }
+
+/* Number Metric Transitions (Smooth architectural transition) */
+.metric-big-number {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+/* Accessibility: Prefers-Reduced-Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .facility-flow-particles,
+  .facility-flow-particles circle,
+  .facility-flow-particles animateMotion {
+    display: none !important;
+  }
+
+  .hero-narrative-column .eyebrow-label,
+  .hero-editorial-headline,
+  .hero-supporting-lead,
+  .hero-actions-group,
+  .hero-metrics-bar,
+  .hero-illustration-column {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .reveal-pending {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    transition-delay: 0s !important;
+  }
+
+  .viewfinder-stage-box.scanning .reticle-laser-line {
+    animation: none !important;
+    top: 50% !important;
+    opacity: 0.8 !important;
+  }
+
+  .btn-primary-action:hover,
+  .btn-secondary-action:hover,
+  .announcement-refresh-btn:hover,
+  .stage-mini-btn:hover,
+  .specimen-preset-card:hover,
+  .silo-telemetry-card:hover,
+  .silo-flush-btn:hover,
+  .modal-close-trigger:hover,
+  .nav-menu-link:hover,
+  .upload-dropzone-surface:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .nav-menu-link::after {
+    transition: none !important;
+  }
+
+  .silo-gauge-fill {
+    transition: none !important;
   }
 }

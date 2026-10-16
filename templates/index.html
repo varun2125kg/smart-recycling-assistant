@@ -148,7 +148,7 @@
               <span class="metric-micro-label">Material categories</span>
             </div>
             <div class="hero-metric-cell">
-              <span class="metric-big-number" id="heroStatWeight">0.0 <abbr title="Kilograms">kg</abbr></span>
+              <span class="metric-big-number" id="heroStatWeight">0 <abbr title="Grams">g</abbr></span>
               <span class="metric-micro-label">Landfill diversion</span>
             </div>
           </div>
@@ -218,6 +218,28 @@
                 <path d="M 280 200 C 320 200, 330 245, 360 245 L 400 245" stroke="#9CAF98" stroke-width="1.5" fill="none"/>
                 <!-- Stream 5: Organics (Subtle) -->
                 <path d="M 280 215 C 320 215, 330 295, 360 295 L 400 295" stroke="#8893A2" stroke-width="1.5" fill="none"/>
+
+                <!-- Dynamic Hero Blueprint Flow Particles (Hardware-Accelerated SMIL) -->
+                <g class="facility-flow-particles" aria-hidden="true">
+                  <circle r="2.2" fill="#172333" opacity="0.75">
+                    <animateMotion dur="3s" repeatCount="indefinite" path="M 60 180 L 170 180" />
+                  </circle>
+                  <circle r="2" fill="#3659C9" opacity="0.85">
+                    <animateMotion dur="3.8s" repeatCount="indefinite" path="M 280 145 C 320 145, 330 65, 360 65 L 400 65" />
+                  </circle>
+                  <circle r="2" fill="#C87952" opacity="0.85">
+                    <animateMotion dur="3.8s" repeatCount="indefinite" path="M 280 160 C 320 160, 330 115, 360 115 L 400 115" />
+                  </circle>
+                  <circle r="2" fill="#172333" opacity="0.85">
+                    <animateMotion dur="3.8s" repeatCount="indefinite" path="M 280 180 L 400 180" />
+                  </circle>
+                  <circle r="2" fill="#9CAF98" opacity="0.85">
+                    <animateMotion dur="3.8s" repeatCount="indefinite" path="M 280 200 C 320 200, 330 245, 360 245 L 400 245" />
+                  </circle>
+                  <circle r="2" fill="#8893A2" opacity="0.85">
+                    <animateMotion dur="3.8s" repeatCount="indefinite" path="M 280 215 C 320 215, 330 295, 360 295 L 400 295" />
+                  </circle>
+                </g>
 
                 <!-- Terminal Silo Bins (Right Vertical Column) -->
                 <g transform="translate(360, 48)">
@@ -340,6 +362,11 @@
                 <span class="preset-name">Office Paper Sheet</span>
                 <span class="preset-code font-mono">#PAP-06</span>
               </button>
+              <button type="button" class="specimen-preset-card" data-preset="household_battery">
+                <span class="preset-icon">⚠️</span>
+                <span class="preset-name">Lithium-Ion Battery</span>
+                <span class="preset-code font-mono">#HAZ-07</span>
+              </button>
             </div>
           </div>
 
@@ -432,7 +459,7 @@
               </div>
               <div class="spec-tile">
                 <span class="spec-tile-label">Estimated Item Mass</span>
-                <span class="spec-tile-value font-mono" id="resWeightDisplay" style="color: var(--color-primary);">~0.025 kg</span>
+                <span class="spec-tile-value font-mono" id="resWeightDisplay" style="color: var(--color-primary);">~0 g</span>
                 <span class="spec-tile-sub font-mono" style="font-size: 0.65rem; color: var(--color-text-muted);">Simulated Reference</span>
               </div>
               <div class="spec-tile">
@@ -449,10 +476,10 @@
             <div class="dispatch-facility-box">
               <div class="dispatch-info-text">
                 <strong>Facility Integration:</strong>
-                <span id="dispatchWeightAnnotation">Route classified specimen to the simulated recycling silo.</span>
+                <span id="dispatchWeightAnnotation">Specimen automatically routed to facility silo.</span>
               </div>
               <button class="btn-primary-action small" id="btnDispatchToSilo">
-                <span>Route to Silo</span>
+                <span>View Silo</span>
                 <span class="btn-arrow">→</span>
               </button>
             </div>
@@ -572,18 +599,18 @@
 
         <!-- Top-Down Architectural Facility SVG -->
         <div class="facility-schematic-viewport">
-          <svg viewBox="0 0 960 400" fill="none" xmlns="http://www.w3.org/2000/svg" class="facility-twin-svg">
+          <svg viewBox="0 0 960 425" fill="none" xmlns="http://www.w3.org/2000/svg" class="facility-twin-svg">
             <!-- Architectural Coordinate Grid -->
             <defs>
               <pattern id="twinGrid" width="24" height="24" patternUnits="userSpaceOnUse">
                 <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#E5E5DF" stroke-width="0.8"/>
               </pattern>
             </defs>
-            <rect width="960" height="400" fill="url(#twinGrid)" opacity="0.6"/>
+            <rect width="960" height="425" fill="url(#twinGrid)" opacity="0.6"/>
 
             <!-- Outer Precision Frame -->
-            <rect x="16" y="16" width="928" height="368" stroke="#CDCBC2" stroke-width="1.2" fill="none"/>
-            <text x="36" y="38" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#172333">FACILITY PLAN // METRO RECOVERY CELL #04</text>
+            <rect x="16" y="16" width="928" height="393" stroke="#CDCBC2" stroke-width="1.2" fill="none"/>
+            <text x="36" y="38" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#172333">FACILITY PLAN // METRO RECOVERY CELL #04 (SIMULATED TELEMETRY)</text>
             <text x="830" y="38" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#3659C9">STATUS: OPTIMAL</text>
 
             <!-- Station 1: Material Intake -->
@@ -614,71 +641,143 @@
               <text x="350" y="252" font-family="Newsreader, serif" font-size="12" font-weight="500" fill="#172333" text-anchor="middle">Spectrometric Sorter</text>
             </g>
 
-            <!-- 5 Directional Material Stream Pathways (Thin Precision Paths) -->
+            <!-- 6 Directional Material Stream Pathways (Thin Precision Paths) -->
             <!-- 1. Plastic Stream (Blue #3659C9) -->
-            <path d="M 430 160 C 530 160, 560 60, 650 60 L 750 60" stroke="#3659C9" stroke-width="2" fill="none"/>
-            <path class="stream-pulse-line" d="M 430 160 C 530 160, 560 60, 650 60 L 750 60" stroke="#3659C9" stroke-width="2" fill="none"/>
+            <path d="M 430 155 C 530 155, 560 53, 650 53 L 750 53" stroke="#3659C9" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 155 C 530 155, 560 53, 650 53 L 750 53" stroke="#3659C9" stroke-width="2" fill="none"/>
 
             <!-- 2. Paper Stream (Burnt Orange #C87952) -->
-            <path d="M 430 180 C 530 180, 560 130, 650 130 L 750 130" stroke="#C87952" stroke-width="2" fill="none"/>
-            <path class="stream-pulse-line" d="M 430 180 C 530 180, 560 130, 650 130 L 750 130" stroke="#C87952" stroke-width="2" fill="none"/>
+            <path d="M 430 173 C 530 173, 560 115, 650 115 L 750 115" stroke="#C87952" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 173 C 530 173, 560 115, 650 115 L 750 115" stroke="#C87952" stroke-width="2" fill="none"/>
 
             <!-- 3. Metal Stream (Slate Ink #172333) -->
-            <path d="M 430 200 L 750 200" stroke="#172333" stroke-width="2" fill="none"/>
-            <path class="stream-pulse-line" d="M 430 200 L 750 200" stroke="#172333" stroke-width="2" fill="none"/>
+            <path d="M 430 191 C 530 191, 560 177, 650 177 L 750 177" stroke="#172333" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 191 C 530 191, 560 177, 650 177 L 750 177" stroke="#172333" stroke-width="2" fill="none"/>
 
             <!-- 4. Glass Stream (Muted Sage #9CAF98) -->
-            <path d="M 430 220 C 530 220, 560 270, 650 270 L 750 270" stroke="#9CAF98" stroke-width="2" fill="none"/>
-            <path class="stream-pulse-line" d="M 430 220 C 530 220, 560 270, 650 270 L 750 270" stroke="#9CAF98" stroke-width="2" fill="none"/>
+            <path d="M 430 209 C 530 209, 560 239, 650 239 L 750 239" stroke="#9CAF98" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 209 C 530 209, 560 239, 650 239 L 750 239" stroke="#9CAF98" stroke-width="2" fill="none"/>
 
             <!-- 5. Organic Stream (Muted Tan #8893A2) -->
-            <path d="M 430 240 C 530 240, 560 340, 650 340 L 750 340" stroke="#8893A2" stroke-width="2" fill="none"/>
-            <path class="stream-pulse-line" d="M 430 240 C 530 240, 560 340, 650 340 L 750 340" stroke="#8893A2" stroke-width="2" fill="none"/>
+            <path d="M 430 227 C 530 227, 560 301, 650 301 L 750 301" stroke="#8893A2" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 227 C 530 227, 560 301, 650 301 L 750 301" stroke="#8893A2" stroke-width="2" fill="none"/>
 
-            <!-- 5 Destination Silos (Clickable SVG Nodes) -->
+            <!-- 6. Hazardous Waste Stream (Amber Warning #D97706) -->
+            <path d="M 430 245 C 530 245, 560 363, 650 363 L 750 363" stroke="#D97706" stroke-width="2" fill="none"/>
+            <path class="stream-pulse-line" d="M 430 245 C 530 245, 560 363, 650 363 L 750 363" stroke="#D97706" stroke-width="2" fill="none"/>
+
+            <!-- Facility Flow Particles (Architectural, Hardware-Accelerated SMIL) -->
+            <g class="facility-flow-particles" aria-hidden="true">
+              <!-- Intake Spine Particles -->
+              <circle r="3.2" fill="#172333" opacity="0.85">
+                <animateMotion dur="2.4s" repeatCount="indefinite" path="M 170 200 L 270 200" />
+              </circle>
+              <circle r="2.4" fill="#5C6779" opacity="0.6">
+                <animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M 170 200 L 270 200" />
+              </circle>
+
+              <!-- Stream 1: Plastic Polymers Particles -->
+              <circle r="3.2" fill="#3659C9" opacity="0.85">
+                <animateMotion dur="3.6s" repeatCount="indefinite" path="M 430 155 C 530 155, 560 53, 650 53 L 750 53" />
+              </circle>
+              <circle r="2.4" fill="#3659C9" opacity="0.55">
+                <animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M 430 155 C 530 155, 560 53, 650 53 L 750 53" />
+              </circle>
+
+              <!-- Stream 2: Fibre & Paper Particles -->
+              <circle r="3.2" fill="#C87952" opacity="0.85">
+                <animateMotion dur="3.6s" repeatCount="indefinite" path="M 430 173 C 530 173, 560 115, 650 115 L 750 115" />
+              </circle>
+              <circle r="2.4" fill="#C87952" opacity="0.55">
+                <animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M 430 173 C 530 173, 560 115, 650 115 L 750 115" />
+              </circle>
+
+              <!-- Stream 3: Metal Alloys Particles -->
+              <circle r="3.2" fill="#172333" opacity="0.85">
+                <animateMotion dur="3.4s" repeatCount="indefinite" path="M 430 191 C 530 191, 560 177, 650 177 L 750 177" />
+              </circle>
+              <circle r="2.4" fill="#5C6779" opacity="0.55">
+                <animateMotion dur="3.4s" begin="1.7s" repeatCount="indefinite" path="M 430 191 C 530 191, 560 177, 650 177 L 750 177" />
+              </circle>
+
+              <!-- Stream 4: Glass Cullet Particles -->
+              <circle r="3.2" fill="#9CAF98" opacity="0.85">
+                <animateMotion dur="3.6s" repeatCount="indefinite" path="M 430 209 C 530 209, 560 239, 650 239 L 750 239" />
+              </circle>
+              <circle r="2.4" fill="#9CAF98" opacity="0.55">
+                <animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M 430 209 C 530 209, 560 239, 650 239 L 750 239" />
+              </circle>
+
+              <!-- Stream 5: Organic Biomass Particles -->
+              <circle r="3.2" fill="#8893A2" opacity="0.85">
+                <animateMotion dur="3.6s" repeatCount="indefinite" path="M 430 227 C 530 227, 560 301, 650 301 L 750 301" />
+              </circle>
+              <circle r="2.4" fill="#8893A2" opacity="0.55">
+                <animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M 430 227 C 530 227, 560 301, 650 301 L 750 301" />
+              </circle>
+
+              <!-- Stream 6: Hazardous Waste Particles -->
+              <circle r="3.2" fill="#D97706" opacity="0.85">
+                <animateMotion dur="3.6s" repeatCount="indefinite" path="M 430 245 C 530 245, 560 363, 650 363 L 750 363" />
+              </circle>
+              <circle r="2.4" fill="#D97706" opacity="0.55">
+                <animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M 430 245 C 530 245, 560 363, 650 363 L 750 363" />
+              </circle>
+            </g>
+
+            <!-- 6 Destination Silos (Clickable SVG Nodes) -->
             <!-- Plastic Silo Node -->
             <g class="twin-svg-station" onclick="selectFacilityStation('plastic')" style="cursor: pointer;">
-              <rect x="750" y="38" width="170" height="46" fill="#FFFFFF" stroke="#3659C9" stroke-width="1.5"/>
-              <text x="765" y="64" font-size="14">🥤</text>
-              <text x="790" y="58" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">PLASTIC STREAM</text>
-              <text x="790" y="74" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#3659C9" id="bpValPlastic">0% • 0 kg</text>
+              <rect x="750" y="32" width="170" height="42" fill="#FFFFFF" stroke="#3659C9" stroke-width="1.5"/>
+              <text x="765" y="58" font-size="14">🥤</text>
+              <text x="790" y="52" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">PLASTIC STREAM</text>
+              <text x="790" y="67" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#3659C9" id="bpValPlastic">0% • 0 g</text>
             </g>
 
             <!-- Paper Silo Node -->
             <g class="twin-svg-station" onclick="selectFacilityStation('paper')" style="cursor: pointer;">
-              <rect x="750" y="108" width="170" height="46" fill="#FFFFFF" stroke="#C87952" stroke-width="1.5"/>
-              <text x="765" y="134" font-size="14">📦</text>
-              <text x="790" y="128" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">PAPER STREAM</text>
-              <text x="790" y="144" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#C87952" id="bpValPaper">0% • 0 kg</text>
+              <rect x="750" y="94" width="170" height="42" fill="#FFFFFF" stroke="#C87952" stroke-width="1.5"/>
+              <text x="765" y="120" font-size="14">📦</text>
+              <text x="790" y="114" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">PAPER STREAM</text>
+              <text x="790" y="129" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#C87952" id="bpValPaper">0% • 0 g</text>
             </g>
 
             <!-- Metal Silo Node -->
             <g class="twin-svg-station" onclick="selectFacilityStation('metal')" style="cursor: pointer;">
-              <rect x="750" y="178" width="170" height="46" fill="#FFFFFF" stroke="#172333" stroke-width="1.5"/>
-              <text x="765" y="204" font-size="14">🥫</text>
-              <text x="790" y="198" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">METAL STREAM</text>
-              <text x="790" y="214" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#172333" id="bpValMetal">0% • 0 kg</text>
+              <rect x="750" y="156" width="170" height="42" fill="#FFFFFF" stroke="#172333" stroke-width="1.5"/>
+              <text x="765" y="182" font-size="14">🥫</text>
+              <text x="790" y="176" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">METAL STREAM</text>
+              <text x="790" y="191" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#172333" id="bpValMetal">0% • 0 g</text>
             </g>
 
             <!-- Glass Silo Node -->
             <g class="twin-svg-station" onclick="selectFacilityStation('glass')" style="cursor: pointer;">
-              <rect x="750" y="248" width="170" height="46" fill="#FFFFFF" stroke="#9CAF98" stroke-width="1.5"/>
-              <text x="765" y="274" font-size="14">🍾</text>
-              <text x="790" y="268" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">GLASS STREAM</text>
-              <text x="790" y="284" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#9CAF98" id="bpValGlass">0% • 0 kg</text>
+              <rect x="750" y="218" width="170" height="42" fill="#FFFFFF" stroke="#9CAF98" stroke-width="1.5"/>
+              <text x="765" y="244" font-size="14">🍾</text>
+              <text x="790" y="238" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">GLASS STREAM</text>
+              <text x="790" y="253" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#9CAF98" id="bpValGlass">0% • 0 g</text>
             </g>
 
             <!-- Organic Silo Node -->
             <g class="twin-svg-station" onclick="selectFacilityStation('organic')" style="cursor: pointer;">
-              <rect x="750" y="318" width="170" height="46" fill="#FFFFFF" stroke="#8893A2" stroke-width="1.5"/>
-              <text x="765" y="344" font-size="14">🍎</text>
-              <text x="790" y="338" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">ORGANIC STREAM</text>
-              <text x="790" y="354" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#8893A2" id="bpValOrganic">0% • 0 kg</text>
+              <rect x="750" y="280" width="170" height="42" fill="#FFFFFF" stroke="#8893A2" stroke-width="1.5"/>
+              <text x="765" y="306" font-size="14">🍎</text>
+              <text x="790" y="300" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="#172333">ORGANIC STREAM</text>
+              <text x="790" y="315" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#8893A2" id="bpValOrganic">0% • 0 g</text>
+            </g>
+
+            <!-- Hazardous Silo Node -->
+            <g class="twin-svg-station" onclick="selectFacilityStation('hazardous')" style="cursor: pointer;">
+              <rect x="750" y="342" width="170" height="42" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+              <rect x="750" y="342" width="4" height="42" fill="#D97706"/>
+              <text x="765" y="368" font-size="14">⚠️</text>
+              <text x="790" y="362" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#B45309">HAZARDOUS STREAM</text>
+              <text x="790" y="377" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#D97706" id="bpValHazardous">0% • 0 g</text>
             </g>
           </svg>
         </div>
 
-        <!-- 5 Station Cards Below Diagram -->
+        <!-- 6 Station Cards Below Diagram -->
         <div class="twin-station-cards-grid">
           
           <!-- Plastic Card -->
@@ -692,7 +791,7 @@
             </div>
             <div class="silo-weight-stats">
               <span class="silo-weight-sub">Simulated Fill:</span>
-              <strong class="font-mono" id="cardWeightPlastic">0 / 500 kg</strong>
+              <strong class="font-mono" id="cardWeightPlastic">0 g / 500 kg</strong>
             </div>
             <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('plastic');">Flush Stream</button>
           </div>
@@ -708,7 +807,7 @@
             </div>
             <div class="silo-weight-stats">
               <span class="silo-weight-sub">Simulated Fill:</span>
-              <strong class="font-mono" id="cardWeightPaper">0 / 400 kg</strong>
+              <strong class="font-mono" id="cardWeightPaper">0 g / 400 kg</strong>
             </div>
             <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('paper');">Flush Stream</button>
           </div>
@@ -724,7 +823,7 @@
             </div>
             <div class="silo-weight-stats">
               <span class="silo-weight-sub">Simulated Fill:</span>
-              <strong class="font-mono" id="cardWeightMetal">0 / 600 kg</strong>
+              <strong class="font-mono" id="cardWeightMetal">0 g / 600 kg</strong>
             </div>
             <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('metal');">Flush Stream</button>
           </div>
@@ -740,7 +839,7 @@
             </div>
             <div class="silo-weight-stats">
               <span class="silo-weight-sub">Simulated Fill:</span>
-              <strong class="font-mono" id="cardWeightGlass">0 / 500 kg</strong>
+              <strong class="font-mono" id="cardWeightGlass">0 g / 500 kg</strong>
             </div>
             <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('glass');">Flush Stream</button>
           </div>
@@ -756,9 +855,25 @@
             </div>
             <div class="silo-weight-stats">
               <span class="silo-weight-sub">Simulated Fill:</span>
-              <strong class="font-mono" id="cardWeightOrganic">0 / 400 kg</strong>
+              <strong class="font-mono" id="cardWeightOrganic">0 g / 400 kg</strong>
             </div>
             <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('organic');">Flush Stream</button>
+          </div>
+
+          <!-- Hazardous Card -->
+          <div class="silo-telemetry-card" data-stream="hazardous" onclick="selectFacilityStation('hazardous')">
+            <div class="silo-card-header">
+              <span class="silo-title-text">⚠️ Hazardous Waste</span>
+              <span class="silo-pct-badge font-mono" id="cardPctHazardous" style="color: #B45309; background: #FEF3C7;">0%</span>
+            </div>
+            <div class="silo-gauge-rail">
+              <div class="silo-gauge-fill" id="cardFillHazardous" style="width: 0%; background: #D97706;"></div>
+            </div>
+            <div class="silo-weight-stats">
+              <span class="silo-weight-sub">Simulated Fill:</span>
+              <strong class="font-mono" id="cardWeightHazardous">0 g / 250 kg</strong>
+            </div>
+            <button class="silo-flush-btn" onclick="event.stopPropagation(); flushStationSilo('hazardous');">Flush Stream</button>
           </div>
 
         </div>
@@ -924,6 +1039,7 @@
               <option value="Metal">Metal</option>
               <option value="Glass">Glass</option>
               <option value="Organic">Organic</option>
+              <option value="Hazardous">Hazardous</option>
             </select>
 
             <button class="btn-secondary-action small" id="btnExportCSV">Export CSV</button>

@@ -15,6 +15,7 @@ import datetime
 import random
 import json
 from flask import Flask, request, jsonify, render_template
+from werkzeug.utils import secure_filename
 
 # Dotenv and Google GenAI SDK imports
 from dotenv import load_dotenv
@@ -23,20 +24,30 @@ from google.genai import types
 from google.genai import errors
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Load environment variables from .env files (in current dir or parent dir)
+# Load environment variables from .env files (in current dir or parent dir if present)
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 load_dotenv()
 
-DB_PATH = os.path.join(BASE_DIR, "ecovision.db")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+# Database path (configurable via DATABASE_PATH for Render persistent disks)
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "ecovision.db"))
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+
+# Upload directory (configurable via UPLOAD_FOLDER for Render persistent disks)
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Allowed image extensions for secure uploads
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max
 
-# Default Gemini model (configurable via GEMINI_MODEL in .env)
+# Default Gemini model (configurable via GEMINI_MODEL in .env or Render dashboard)
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 # Supported Digital Twin material stream mappings
@@ -45,7 +56,8 @@ CATEGORY_TO_STREAM = {
     "paper": "paper",
     "metal": "metal",
     "glass": "glass",
-    "organic": "organic"
+    "organic": "organic",
+    "hazardous": "hazardous"
 }
 
 # ==============================================================================
@@ -61,6 +73,11 @@ DEFAULT_ITEM_WEIGHT_ESTIMATES_KG = {
     "paper sheet": 0.005,
     "cardboard box": 0.500,
     "glass bottle": 0.250,
+    "alkaline battery": 0.045,
+    "lithium battery": 0.050,
+    "battery": 0.050,
+    "fluorescent bulb": 0.150,
+    "motor oil bottle": 0.300,
 }
 
 DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG = {
@@ -69,8 +86,33 @@ DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG = {
     "metal": 0.015,
     "glass": 0.250,
     "organic": 0.180,
+    "hazardous": 0.150,
     "general": 0.100,
 }
+
+def format_weight(kg: float) -> str:
+    """
+    Format weight in kilograms (kg) or grams (g) according to EcoVision standards:
+    - Values below 1000 grams (< 1.0 kg) are formatted in grams ('g').
+    - Values of 1000 grams or more (>= 1.0 kg) are formatted in kilograms ('kg').
+    - Trailing zero decimals are cleaned to provide clean representations (e.g. 5 g, 250 g, 1 kg, 1.25 kg, 2.5 kg).
+    - Floating-point accumulation errors are avoided.
+    """
+    if kg is None:
+        kg = 0.0
+    kg = float(kg)
+    # Convert kg to grams avoiding floating-point inaccuracy
+    grams = round(kg * 1000.0, 4)
+    if grams < 1000.0:
+        g_val = round(grams, 3)
+        if g_val.is_integer():
+            return f"{int(g_val)} g"
+        return f"{g_val:.3f}".rstrip("0").rstrip(".") + " g"
+    else:
+        kg_val = round(kg, 3)
+        if kg_val.is_integer():
+            return f"{int(kg_val)} kg"
+        return f"{kg_val:.3f}".rstrip("0").rstrip(".") + " kg"
 
 def resolve_estimated_weight(category, sub_category="", filename="", detected_item=""):
     """
@@ -108,6 +150,7 @@ def resolve_estimated_weight(category, sub_category="", filename="", detected_it
         "metal": float(os.environ.get("CATEGORY_EST_METAL", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["metal"])),
         "glass": float(os.environ.get("CATEGORY_EST_GLASS", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["glass"])),
         "organic": float(os.environ.get("CATEGORY_EST_ORGANIC", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["organic"])),
+        "hazardous": float(os.environ.get("CATEGORY_EST_HAZARDOUS", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["hazardous"])),
         "general": float(os.environ.get("CATEGORY_EST_GENERAL", DEFAULT_CATEGORY_WEIGHT_ESTIMATES_KG["general"])),
     }
 
@@ -212,6 +255,22 @@ def resolve_estimated_weight(category, sub_category="", filename="", detected_it
             "disclaimer": "Simulated reference estimate; not a physical scale measurement."
         }
 
+    # 7. Hazardous Waste Items
+    if (
+        cat_lower == "hazardous"
+        or any(k in combined_text for k in ["battery", "lithium", "chemical", "solvent", "motor oil", "fluorescent", "cfl", "toxic", "pesticide", "hazard"])
+    ):
+        is_batt = any(k in combined_text for k in ["battery", "lithium", "cell"])
+        item_w = 0.050 if is_batt else cat_estimates.get("hazardous", 0.150)
+        item_title = "Lithium-Ion Battery" if is_batt else "Regulated Hazardous Specimen"
+        return {
+            "weight_kg": item_w,
+            "item_name": item_title,
+            "is_specific_item": True,
+            "is_estimate": True,
+            "disclaimer": "Simulated reference estimate; not a physical scale measurement."
+        }
+
     # Category-level fallback estimate
     fallback_weight = cat_estimates.get(cat_lower, cat_estimates.get("general", 0.100))
     display_cat = category.strip().title() if category else "General"
@@ -229,6 +288,10 @@ RECYCLING_SYSTEM_INSTRUCTION = (
     "Provide accurate, concise, and practical recycling, composting, and material disposal guidance. "
     "Always clarify material composition, contamination avoidance (e.g., removing food residue, liquid waste, adhesive labels), "
     "and appropriate recycling streams. "
+    "CRITICAL SAFETY PROTOCOL: Hazardous materials (including lithium-ion/alkaline batteries, electronics with cells, chemicals, solvents, "
+    "paints, motor oils, pesticides, mercury devices, and fluorescent tubes) must NEVER be mixed with standard recyclables or disposed in curbside bins. "
+    "Always instruct users to store items in original sealed containers and transport them to authorized municipal Household Hazardous Waste (HHW) drop-offs. "
+    "Never provide instructions for unsafe home chemical neutralization, dilution, or disposal down drains. "
     "Explicitly acknowledge that municipal and regional recycling rules vary by locality and facility capabilities, "
     "and advise users to verify with local waste authorities when regulations may differ."
 )
@@ -277,20 +340,22 @@ def init_db():
     );
     """)
 
-    # Populate initial bins if empty
-    cursor.execute("SELECT COUNT(*) FROM facility_bins")
-    if cursor.fetchone()[0] == 0:
-        initial_bins = [
-            ("plastic", "Plastic (PET/HDPE)", 0.0, 500.0, 0.0),
-            ("paper", "Paper & Cardboard", 0.0, 400.0, 0.0),
-            ("metal", "Aluminum & Cans", 0.0, 600.0, 0.0),
-            ("glass", "Glass Containers", 0.0, 500.0, 0.0),
-            ("organic", "Organic Compost", 0.0, 400.0, 0.0),
-        ]
-        cursor.executemany("""
-            INSERT INTO facility_bins (stream_name, display_name, current_kg, max_kg, fill_percentage)
-            VALUES (?, ?, ?, ?, ?)
-        """, initial_bins)
+    # Ensure all 6 standard streams exist without resetting or modifying existing streams
+    required_streams = [
+        ("plastic", "Plastic (PET/HDPE)", 500.0),
+        ("paper", "Paper & Cardboard", 400.0),
+        ("metal", "Aluminum & Cans", 600.0),
+        ("glass", "Glass Containers", 500.0),
+        ("organic", "Organic Compost", 400.0),
+        ("hazardous", "Hazardous Waste", 250.0),
+    ]
+    for stream_name, display_name, max_kg in required_streams:
+        cursor.execute("SELECT COUNT(*) FROM facility_bins WHERE stream_name = ?", (stream_name,))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("""
+                INSERT INTO facility_bins (stream_name, display_name, current_kg, max_kg, fill_percentage)
+                VALUES (?, ?, 0.0, ?, 0.0)
+            """, (stream_name, display_name, max_kg))
 
     # Backfill/update existing scans to ensure correct simulated weights
     cursor.execute("SELECT id, filename, category, sub_category, estimated_weight_kg FROM scans")
@@ -301,35 +366,29 @@ def init_db():
         if curr_est is None or curr_est <= 0.0 or (abs(curr_est - 0.025) < 0.0001 and (cat or "").lower() != "plastic"):
             cursor.execute("UPDATE scans SET estimated_weight_kg = ? WHERE id = ?", (resolved["weight_kg"], sid))
 
-    # Recalibrate facility_bins from actual scan records in SQLite so weights accurately reflect stored items
-    for stream in ["plastic", "paper", "metal", "glass", "organic"]:
-        cursor.execute("""
-            SELECT COALESCE(SUM(estimated_weight_kg), 0.0)
-            FROM scans
-            WHERE LOWER(category) = ?
-        """, (stream,))
-        stream_weight = cursor.fetchone()[0] or 0.0
-        cursor.execute("SELECT max_kg FROM facility_bins WHERE stream_name = ?", (stream,))
-        bin_max = cursor.fetchone()
-        max_kg = bin_max[0] if bin_max else 500.0
-        fill_pct = min(100.0, round((stream_weight / max_kg) * 100.0, 2))
-        cursor.execute("""
-            UPDATE facility_bins
-            SET current_kg = ?, fill_percentage = ?
-            WHERE stream_name = ?
-        """, (round(stream_weight, 3), fill_pct, stream))
-
     conn.commit()
     conn.close()
+
+# Initialize database tables immediately upon module load so that both
+# direct execution (python app.py) and WSGI servers (gunicorn app:app)
+# guarantee initialized SQLite schema and facility bins.
+try:
+    init_db()
+except Exception as _e:
+    app.logger.warning("Database startup initialization check: %s", _e)
 
 # ==============================================================================
 # Gemini Client & Fallback Helpers
 # ==============================================================================
 def load_environment():
-    """Reload environment variables from .env to pick up any changes."""
-    load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
-    load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"), override=True)
-    load_dotenv(override=True)
+    """Reload environment variables from .env if present (e.g. during local dev)."""
+    env_local = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_local):
+        load_dotenv(env_local)
+    env_parent = os.path.join(os.path.dirname(BASE_DIR), ".env")
+    if os.path.exists(env_parent):
+        load_dotenv(env_parent)
+    load_dotenv()
 
 def get_gemini_client():
     """
@@ -340,7 +399,7 @@ def get_gemini_client():
 
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        return None, "GEMINI_API_KEY is not configured in .env"
+        return None, "GEMINI_API_KEY environment variable is not configured"
 
     try:
         # Initialize Google GenAI Client with a 15-second HTTP timeout
@@ -363,8 +422,10 @@ def get_rule_based_fallback(prompt: str, reason: str = "Gemini Service Offline")
 
     if "pizza" in prompt_lower:
         advice = "🍕 Pizza boxes can only be recycled if they are completely free of grease, cheese, and food scraps. Greasy cardboard contaminates paper pulping vats; compost or discard soiled portions and recycle only clean cardboard."
-    elif "battery" in prompt_lower or "batteries" in prompt_lower:
-        advice = "🔋 Batteries must NEVER enter standard curbside recycling or trash bins due to extreme fire hazards in collection trucks and shredders. Bring household alkaline, lithium, and rechargeable batteries to certified e-waste kiosks."
+    elif any(k in prompt_lower for k in ["hazard", "toxic", "chemical", "paint", "pesticide", "solvent", "motor oil", "fluorescent"]):
+        advice = "⚠️ Hazardous Waste Warning: Hazardous materials, solvents, motor oils, paints, and chemicals must NEVER be mixed with standard recyclables or poured down drains. Keep in sealed original containers and take them directly to an authorized municipal Household Hazardous Waste (HHW) collection facility. Consult local waste management rules for specialized drop-off events."
+    elif "battery" in prompt_lower or "batteries" in prompt_lower or "lithium" in prompt_lower:
+        advice = "🔋 Battery Safety Warning: Batteries (alkaline, lithium-ion, nickel-cadmium) pose severe fire hazards in collection trucks and recycling sorting machinery. They must NEVER enter standard curbside recycling or trash. Bring them to certified battery collection points or municipal hazardous waste drop-off locations."
     elif "plastic" in prompt_lower and ("5" in prompt_lower or "pp" in prompt_lower):
         advice = "♻️ Polypropylene (#5 PP) is widely used in yogurt tubs, bottle caps, and food containers. Rinse thoroughly, verify that your local municipal program accepts #5 plastics, and separate flexible wrap."
     elif "can" in prompt_lower or "metal" in prompt_lower or "aluminum" in prompt_lower:
@@ -373,8 +434,8 @@ def get_rule_based_fallback(prompt: str, reason: str = "Gemini Service Offline")
         advice = "🍾 Glass containers and jars are highly recyclable. Rinse clean and discard non-glass corks or lids. Do not mix container glass with ceramic dishware, Pyrex cookware, or window glass."
     elif "cardboard" in prompt_lower or "box" in prompt_lower:
         advice = "📦 Cardboard packaging should be flattened completely to optimize transport volume. Remove plastic packing tape, bubble wrap, and polystyrene peanuts."
-    elif "electronic" in prompt_lower or "phone" in prompt_lower or "cable" in prompt_lower:
-        advice = "💻 E-waste items contain valuable recyclable metals and hazardous elements. Route old electronics, cables, and phones to authorized municipal e-waste recycling depots."
+    elif "electronic" in prompt_lower or "e-waste" in prompt_lower or "device" in prompt_lower:
+        advice = "💻 E-Waste & Electronics Advisory: Electronic devices contain complex composite materials and potential battery hazards. Keep them separate from ordinary curbside recycling bins. Deliver to certified municipal e-waste recycling depots or designated manufacturer take-back programs."
     else:
         advice = f"♻️ Practical Recycling Guidance for '{prompt[:45]}': Rinse containers thoroughly, remove non-matching caps or plastic films, and separate multi-material packaging. Verify acceptance with your municipal recycling program as specific sorting capabilities vary locally."
 
@@ -513,6 +574,30 @@ ONTOLOGY = {
         "decomposition": "2-4 Weeks",
         "carbon_saved": "0.10 kg CO2e",
         "disposal_steps": "Place in organic green bin. Keep free from plastic wrap."
+    },
+    "household_battery": {
+        "category": "Hazardous",
+        "sub_category": "Lithium-Ion / Alkaline Cell",
+        "recyclable": 0,
+        "decomposition": "100+ Years (Toxic Residue)",
+        "carbon_saved": "0.45 kg CO2e",
+        "disposal_steps": "⚠️ CRITICAL SAFETY: Keep strictly separate from all ordinary recyclables. Tape battery terminals and take to an authorized municipal Household Hazardous Waste (HHW) depot or certified retail drop-off kiosk. Follow local hazardous waste guidelines."
+    },
+    "motor_oil": {
+        "category": "Hazardous",
+        "sub_category": "Petroleum-Based Automotive Fluid",
+        "recyclable": 0,
+        "decomposition": "Indeterminate / Toxic",
+        "carbon_saved": "0.60 kg CO2e",
+        "disposal_steps": "⚠️ CRITICAL SAFETY: Store in a sealed, leak-proof container. NEVER dump down drains or in trash. Transport to an authorized municipal household hazardous waste facility or participating auto service center."
+    },
+    "fluorescent_bulb": {
+        "category": "Hazardous",
+        "sub_category": "Mercury-Containing Fluorescent Lamp",
+        "recyclable": 0,
+        "decomposition": "Indeterminate / Mercury Hazard",
+        "carbon_saved": "0.15 kg CO2e",
+        "disposal_steps": "⚠️ CRITICAL SAFETY: Handle with extreme care to prevent glass breakage and mercury vapor release. Do NOT place in curbside glass or trash. Transport to a certified municipal hazardous waste collection center."
     }
 }
 
@@ -545,23 +630,25 @@ def classify_with_gemini_vision(filepath, filename):
 
         prompt = (
             "You are an expert computer vision waste sorting and material circularity model for EcoVision AI.\n"
-            "Examine this physical waste specimen image and classify it into strictly ONE of these 6 categories:\n"
+            "Examine this physical waste specimen image and classify it into strictly ONE of these categories:\n"
             "- Plastic (beverage bottles, rigid polymers, film, PET, HDPE, PP, etc.)\n"
             "- Paper (cardboard, paper, newsprint, egg cartons, unsoiled fiber packaging)\n"
             "- Metal (aluminum cans, tin, steel containers, foil, metal lids)\n"
             "- Glass (beverage bottles, jars, flint/amber container glass)\n"
             "- Organic (food scraps, fruit peels, vegetables, coffee grounds, compostable leftovers)\n"
-            "- General (non-recyclable trash, composite multi-materials, contaminated items, sanitary waste)\n\n"
+            "- Hazardous (batteries, automotive fluids, motor oils, solvents, pesticides, paints, fluorescent bulbs, hazardous chemicals)\n"
+            "- Uncertain (unidentifiable specimens, composite e-waste, complex electronics, or ambiguous items where hazard/polymer identity is unverified)\n"
+            "- General (non-recyclable solid trash, composite multi-materials, contaminated items, sanitary waste)\n\n"
             "Return a strictly valid JSON object matching this schema:\n"
             "{\n"
-            '  "category": "Plastic" | "Paper" | "Metal" | "Glass" | "Organic" | "General",\n'
-            '  "detected_item": "<Common item name if recognized, e.g. Plastic water bottle, Aluminium can, Apple, Paper sheet, Cardboard box, Glass bottle, or empty string>",\n'
-            '  "sub_category": "<Precise polymer/alloy/biomass description, e.g. PET-1 Beverage Container, Kraft Corrugated Board, Organic Food Scrap>",\n'
+            '  "category": "Plastic" | "Paper" | "Metal" | "Glass" | "Organic" | "Hazardous" | "Uncertain" | "General",\n'
+            '  "detected_item": "<Common item name if recognized, e.g. Plastic water bottle, Aluminium can, Apple, Paper sheet, Cardboard box, Glass bottle, Household battery, or empty string>",\n'
+            '  "sub_category": "<Precise polymer/alloy/biomass/chemical specification, e.g. PET-1 Beverage Container, Lithium-Ion Cell, Kraft Corrugated Board>",\n'
             '  "confidence": <number between 88.0 and 99.8 reflecting visual classification confidence>,\n'
             '  "recyclable": <boolean true or false>,\n'
-            '  "decomposition": "<Estimated natural decomposition timeline, e.g. 450 Years, 2-4 Weeks, 200 Years>",\n'
+            '  "decomposition": "<Estimated natural decomposition timeline, e.g. 450 Years, 2-4 Weeks, 200 Years, Regulated / Indeterminate>",\n'
             '  "carbon_saved": "<Estimated CO2e avoided if properly diverted, e.g. 0.18 kg CO2e, or 0.0 kg CO2e>",\n'
-            '  "disposal_steps": "<Actionable guidance for rinsing, cap separation, and municipal bin preparation>"\n'
+            '  "disposal_steps": "<Actionable guidance for rinsing, cap separation, safe segregation, or municipal depot preparation>"\n'
             "}\n"
             "Output ONLY the JSON object. Do not wrap in markdown backticks or commentary."
         )
@@ -590,7 +677,7 @@ def classify_with_gemini_vision(filepath, filename):
                         raw_text = "\n".join(lines).strip()
 
                     data = json.loads(raw_text)
-                    valid_categories = {"Plastic", "Paper", "Metal", "Glass", "Organic", "General"}
+                    valid_categories = {"Plastic", "Paper", "Metal", "Glass", "Organic", "Hazardous", "Uncertain", "General"}
                     cat = data.get("category", "").strip().title()
                     if cat not in valid_categories:
                         for vc in valid_categories:
@@ -598,12 +685,15 @@ def classify_with_gemini_vision(filepath, filename):
                                 cat = vc
                                 break
                         else:
-                            cat = "General"
+                            cat = "Uncertain"
 
                     data["category"] = cat
                     data["detected_item"] = str(data.get("detected_item") or "").strip()
                     data["confidence"] = round(float(data.get("confidence", 96.0)), 1)
-                    data["recyclable"] = bool(data.get("recyclable", cat != "General"))
+                    if cat in ["Hazardous", "Uncertain", "General"]:
+                        data["recyclable"] = False
+                    else:
+                        data["recyclable"] = bool(data.get("recyclable", True))
                     if not data.get("sub_category"):
                         data["sub_category"] = f"{cat} Material"
                     if not data.get("decomposition"):
@@ -611,7 +701,12 @@ def classify_with_gemini_vision(filepath, filename):
                     if not data.get("carbon_saved"):
                         data["carbon_saved"] = "0.18 kg CO2e" if data["recyclable"] else "0.0 kg CO2e"
                     if not data.get("disposal_steps"):
-                        data["disposal_steps"] = f"Deposit in designated {cat.lower()} sorting receptacle."
+                        if cat == "Hazardous":
+                            data["disposal_steps"] = "⚠️ HAZARDOUS WASTE: Keep strictly separated from all ordinary recyclables. Store in a secure, sealed container and bring to an authorized municipal Household Hazardous Waste (HHW) depot. Follow local hazardous waste guidelines."
+                        elif cat == "Uncertain":
+                            data["disposal_steps"] = "⚠️ UNVERIFIED ITEM: Automated classification cannot verify material composition or hazard level. Keep segregated from ordinary recyclables and consult local municipal waste regulations."
+                        else:
+                            data["disposal_steps"] = f"Deposit in designated {cat.lower()} sorting receptacle."
 
                     return data, None
             except Exception as e:
@@ -634,6 +729,7 @@ def analyze_waste_image(filepath, filename):
     # 1. Attempt Real Gemini Vision Classification
     vision_result, err = classify_with_gemini_vision(filepath, filename)
     if vision_result:
+        vision_result["is_ai_generated"] = True
         return vision_result
 
     app.logger.warning("Vision API unavailable (%s); using deterministic ontology fallback.", err)
@@ -664,18 +760,37 @@ def analyze_waste_image(filepath, filename):
             matched = ONTOLOGY.get("paper")
         elif any(w in fname for w in ["glass", "jar", "flint", "cullet"]):
             matched = ONTOLOGY.get("glass")
-        else:
-            # General fallback if unrecognized
+        # Distinct hazardous items: specific verified hazardous tokens
+        elif any(w in fname for w in ["household_battery", "car_battery", "lithium_battery", "motor_oil", "fluorescent_bulb", "pesticide"]):
+            if "fluorescent" in fname:
+                matched = ONTOLOGY.get("fluorescent_bulb")
+            elif "motor_oil" in fname:
+                matched = ONTOLOGY.get("motor_oil")
+            else:
+                matched = ONTOLOGY.get("household_battery")
+        # Do NOT automatically classify broad/ambiguous electronics, gadgets, or unidentified chemicals as hazardous based only on an unreliable guess
+        # Route unconfident, electronic, or unknown items to Uncertain to prevent contaminating recycling streams
+        elif any(w in fname for w in ["electronic", "device", "gadget", "phone", "circuit", "e-waste", "chemical", "battery", "unknown", "sample"]):
             matched = {
-                "category": "General",
-                "sub_category": "Unsorted Solid Waste",
+                "category": "Uncertain",
+                "sub_category": "Unverified Specimen (Segregation Required)",
                 "recyclable": 0,
                 "decomposition": "Indeterminate",
                 "carbon_saved": "0.0 kg CO2e",
-                "disposal_steps": "Separate recyclable components (metals, dry clean paper, rigid plastics) and dispose of residue in general municipal waste."
+                "disposal_steps": "⚠️ UNVERIFIED MATERIAL: Heuristic filename matching cannot reliably confirm material composition or hazard level. Keep strictly segregated from ordinary recyclables and consult local municipal waste collection regulations."
+            }
+        else:
+            # Fallback for unrecognized items - Mark as Uncertain to prevent misrouting into recycling streams
+            matched = {
+                "category": "Uncertain",
+                "sub_category": "Unidentified Specimen",
+                "recyclable": 0,
+                "decomposition": "Indeterminate",
+                "carbon_saved": "0.0 kg CO2e",
+                "disposal_steps": "⚠️ UNVERIFIED ITEM: Automated classification cannot verify material composition or hazard status. Keep separate from ordinary recyclables to prevent stream contamination."
             }
 
-    confidence = round(random.uniform(88.0, 93.5), 1)
+    confidence = round(random.uniform(88.0, 93.5), 1) if matched["category"] != "Uncertain" else 50.0
 
     return {
         "category": matched["category"],
@@ -684,7 +799,9 @@ def analyze_waste_image(filepath, filename):
         "recyclable": bool(matched["recyclable"]),
         "decomposition": matched["decomposition"],
         "carbon_saved": matched["carbon_saved"],
-        "disposal_steps": matched["disposal_steps"]
+        "disposal_steps": matched["disposal_steps"],
+        "is_ai_generated": False,
+        "classification_source": "Deterministic Heuristic Fallback (Filename-Based; AI Vision Offline)"
     }
 
 # ==============================================================================
@@ -749,6 +866,7 @@ def api_stats():
         "recyclable_rate": recyclable_rate,
         "categories_count": categories_count,
         "total_weight_kg": total_weight_kg,
+        "formatted_total_weight": format_weight(total_weight_kg),
         "carbon_saved_kg": carbon_saved_kg
     })
 
@@ -761,8 +879,16 @@ def api_scan():
     if file.filename == "":
         return jsonify({"error": "No image selected"}), 400
 
-    filename = f"{int(datetime.datetime.now().timestamp())}_{file.filename}"
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file format. Supported formats: JPEG, PNG, WEBP, GIF"}), 400
+
+    # Ensure uploads directory exists on ephemeral or persistent storage
+    upload_dir = app.config["UPLOAD_FOLDER"]
+    os.makedirs(upload_dir, exist_ok=True)
+
+    safe_name = secure_filename(file.filename) or "scan_specimen.jpg"
+    filename = f"{int(datetime.datetime.now().timestamp())}_{safe_name}"
+    filepath = os.path.join(upload_dir, filename)
     file.save(filepath)
 
     # Classify
@@ -810,7 +936,7 @@ def api_scan():
                     # Ensure current_kg never exceeds max_kg (Requirement 8)
                     new_weight = min(max_kg, round(curr_kg + item_weight, 3))
                     # Calculate fill_percentage as current_kg / max_kg * 100 (Requirement 7)
-                    new_pct = round((new_weight / max_kg) * 100.0, 2)
+                    new_pct = min(100.0, round((new_weight / max_kg) * 100.0, 2))
                     cursor.execute("""
                         UPDATE facility_bins
                         SET current_kg = ?, fill_percentage = ?
@@ -830,6 +956,9 @@ def api_scan():
         "carbon_saved": analysis["carbon_saved"],
         "disposal_steps": analysis["disposal_steps"],
         "estimated_weight_kg": item_weight,
+        "formatted_weight": format_weight(item_weight),
+        "routed_to_stream": stream_name,
+        "already_routed": True,
         "weight_label": weight_info["item_name"],
         "is_specific_item": weight_info["is_specific_item"],
         "weight_is_estimate": True,
@@ -862,6 +991,7 @@ def api_history():
             "carbon_saved": r["carbon_saved"],
             "disposal_steps": r["disposal_steps"],
             "estimated_weight_kg": round(float(est_w), 3),
+            "formatted_weight": format_weight(est_w),
             "weight_is_estimate": True,
             "is_demo": bool(r["is_demo"]),
             "timestamp": r["timestamp"]
@@ -894,7 +1024,9 @@ def api_digital_twin():
             "name": r["display_name"],
             "current_kg": round(float(r["current_kg"]), 3),
             "max_kg": round(float(r["max_kg"]), 1),
-            "fill_percentage": round(float(r["fill_percentage"]), 2)
+            "fill_percentage": round(float(r["fill_percentage"]), 2),
+            "formatted_current_weight": format_weight(r["current_kg"]),
+            "formatted_max_weight": format_weight(r["max_kg"])
         }
 
     return jsonify({
@@ -923,21 +1055,32 @@ def api_twin_inflow():
     data = request.get_json(silent=True) or {}
     stream_name = (data.get("category") or "plastic").lower()
     
-    try:
-        weight = float(data.get("weight_kg", 0.025))
-        if weight <= 0:
+    # Support input in grams or kilograms (convert grams to kilograms exactly once)
+    if "weight_g" in data:
+        try:
+            weight = float(data["weight_g"]) / 1000.0
+        except (ValueError, TypeError):
             weight = 0.025
-    except (ValueError, TypeError):
-        weight = 0.025
+    else:
+        try:
+            weight = float(data.get("weight_kg", 0.025))
+            if weight <= 0:
+                weight = 0.025
+        except (ValueError, TypeError):
+            weight = 0.025
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT current_kg, max_kg FROM facility_bins WHERE stream_name = ?", (stream_name,))
     row = cursor.fetchone()
+    new_weight = 0.0
+    new_pct = 0.0
     if row:
         curr, max_kg = row
+        # Ensure bin weight never exceeds configured capacity (Requirement 6)
         new_weight = min(max_kg, round(curr + weight, 3))
-        new_pct = round((new_weight / max_kg) * 100.0, 2)
+        # Ensure fill percentage matches current_kg / max_kg * 100
+        new_pct = min(100.0, round((new_weight / max_kg) * 100.0, 2))
         cursor.execute("""
             UPDATE facility_bins
             SET current_kg = ?, fill_percentage = ?
@@ -945,7 +1088,15 @@ def api_twin_inflow():
         """, (new_weight, new_pct, stream_name))
         conn.commit()
     conn.close()
-    return jsonify({"success": True, "stream": stream_name, "added_kg": weight})
+    return jsonify({
+        "success": True,
+        "stream": stream_name,
+        "added_kg": weight,
+        "formatted_added_weight": format_weight(weight),
+        "current_kg": new_weight,
+        "formatted_current_weight": format_weight(new_weight),
+        "fill_percentage": new_pct
+    })
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -1082,7 +1233,7 @@ def api_recommendations():
         '  "primary_actions": [\n'
         '    {\n'
         '      "title": "<Concise action title>",\n'
-        '      "target_material": "Plastic" | "Paper" | "Metal" | "Glass" | "Organic" | "General",\n'
+        '      "target_material": "Plastic" | "Paper" | "Metal" | "Glass" | "Organic" | "Hazardous" | "General",\n'
         '      "impact": "High" | "Medium" | "Low",\n'
         '      "co2_savings_potential": "<e.g. 5.2 kg CO2e / month>",\n'
         '      "recommendation": "<Step-by-step practical advice>",\n'
@@ -1138,5 +1289,6 @@ def api_recommendations():
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5050))
-    print(f"EcoVision AI Server starting on http://localhost:{port} ...")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "0").lower() in ("1", "true")
+    print(f"EcoVision AI Server starting on http://0.0.0.0:{port} ...")
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
